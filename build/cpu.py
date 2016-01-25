@@ -127,7 +127,7 @@ class X86_64(CPU):
 	bigEndian = False
 	unalignedMemoryAccess = True
 	gccFlags = '-m64',
-
+	
 # Build a dictionary of CPUs using introspection.
 def _discoverCPUs(localObjects):
 	for obj in localObjects:
