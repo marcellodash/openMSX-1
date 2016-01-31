@@ -322,7 +322,7 @@ $(BUILD_DIR)/$(PACKAGE_OGG)/Makefile: \
 		--prefix=$(PWD)/$(INSTALL_DIR) \
 		CFLAGS="$(_CFLAGS)" \
 		LDFLAGS="$(_LDFLAGS)" \
-		PKG_CONFIG=/nowhere
+		PKG_CONFIG=pkg-config
 
 $(BUILD_DIR)/$(PACKAGE_VORBIS)/Makefile: \
   $(SOURCE_DIR)/$(PACKAGE_VORBIS) \
@@ -336,7 +336,7 @@ $(BUILD_DIR)/$(PACKAGE_VORBIS)/Makefile: \
 		--with-ogg=$(PWD)/$(INSTALL_DIR) \
 		CFLAGS="$(_CFLAGS)" \
 		LDFLAGS="$(_LDFLAGS)" \
-		PKG_CONFIG=/nowhere
+		PKG_CONFIG=pkg-config
 
 # Note: According to its spec file, Theora has a build dependency on both
 #       Ogg and Vorbis, a runtime dependency on Vorbis and a development
@@ -359,7 +359,7 @@ $(BUILD_DIR)/$(PACKAGE_THEORA)/Makefile: \
 		--with-vorbis=$(PWD)/$(INSTALL_DIR) \
 		CFLAGS="$(_CFLAGS)" \
 		LDFLAGS="$(_LDFLAGS)" \
-		PKG_CONFIG=/nowhere
+		PKG_CONFIG=pkg-config
 
 endif
 
