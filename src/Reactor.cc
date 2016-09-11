@@ -163,7 +163,7 @@ private:
 class RealTimeInfo final : public InfoTopic
 {
 public:
-	RealTimeInfo(InfoCommand& openMSXInfoCommand);
+	explicit RealTimeInfo(InfoCommand& openMSXInfoCommand);
 	void execute(array_ref<TclObject> tokens,
 	             TclObject& result) const override;
 	string help(const vector<string>& tokens) const override;
@@ -203,8 +203,7 @@ void Reactor::init()
 		*globalCommandController, *this);
 	virtualDrive = make_unique<DiskChanger>(
 		*this, "virtual_drive");
-	filePool = make_unique<FilePool>(
-		*globalCommandController, *eventDistributor);
+	filePool = make_unique<FilePool>(*globalCommandController, *this);
 	userSettings = make_unique<UserSettings>(
 		*globalCommandController);
 	softwareDatabase = make_unique<RomDatabase>(

@@ -2,11 +2,12 @@
 #include "RTSchedulable.hh"
 #include <algorithm>
 #include <limits>
+#include <iterator>
 
 namespace openmsx {
 
 struct EqualRTSchedulable {
-	EqualRTSchedulable(const RTSchedulable& schedulable_)
+	explicit EqualRTSchedulable(const RTSchedulable& schedulable_)
 		: schedulable(schedulable_) {}
 	bool operator()(const RTSyncPoint& sp) const {
 		return sp.schedulable == &schedulable;

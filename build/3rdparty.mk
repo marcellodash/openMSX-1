@@ -30,7 +30,6 @@ SYSTEM_LIBS:=$(shell $(PYTHON) build/list_system_libs.py $(OPENMSX_TARGET_OS))
 # These variables are already exported, but we make it explicit here.
 export CC
 export NEXT_ROOT
-export MACOSX_DEPLOYMENT_TARGET
 
 CC=$(_CC)
 
@@ -152,7 +151,7 @@ $(BUILD_TARGETS): $(TIMESTAMP_DIR)/build-%: $(BUILD_DIR)/%/Makefile
 	touch $@
 
 # Configuration of a lib can depend on the lib-config script of another lib.
-PNG_CONFIG_SCRIPT:=$(INSTALL_DIR)/bin/libpng12-config
+PNG_CONFIG_SCRIPT:=$(INSTALL_DIR)/bin/libpng-config
 FREETYPE_CONFIG_SCRIPT:=$(INSTALL_DIR)/bin/freetype-config
 SDL_CONFIG_SCRIPT:=$(INSTALL_DIR)/bin/sdl-config
 $(PNG_CONFIG_SCRIPT): $(TIMESTAMP_DIR)/install-$(PACKAGE_PNG)

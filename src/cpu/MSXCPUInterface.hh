@@ -63,6 +63,24 @@ public:
 	void unregister_IO_Out(byte port, MSXDevice* device);
 
 	/**
+	 * These methods are similar to the (un)register_IO_{In,Out} methods above.
+	 *
+	 * The wrapXX variants register a new device, replacing the previously
+	 * registered device at the same port. The replaced device is returned.
+	 * The unwrapXX variants do the reverse operation.
+	 *
+	 * The intention is that devices using these methods extend (=wrap) the
+	 * functionality of a previously registered device. So they should use
+	 * the pointer returned from wrapXX() and call the various IO handling
+	 * methods of that device from their own corresponding IO handling
+	 * methods.
+	 */
+	MSXDevice* wrap_IO_In (byte port, MSXDevice* device);
+	MSXDevice* wrap_IO_Out(byte port, MSXDevice* device);
+	void unwrap_IO_In (byte port, MSXDevice* device);
+	void unwrap_IO_Out(byte port, MSXDevice* device);
+
+	/**
 	 * Devices can register themself in the MSX slotstructure.
 	 * This is normally done in their constructor. Once devices
 	 * are registered their readMem() / writeMem() methods can
@@ -276,39 +294,39 @@ private:
 	void doContinue2();
 
 	struct MemoryDebug final : SimpleDebuggable {
-		MemoryDebug(MSXMotherBoard& motherBoard);
+		explicit MemoryDebug(MSXMotherBoard& motherBoard);
 		byte read(unsigned address, EmuTime::param time) override;
 		void write(unsigned address, byte value, EmuTime::param time) override;
 	} memoryDebug;
 
 	struct SlottedMemoryDebug final : SimpleDebuggable {
-		SlottedMemoryDebug(MSXMotherBoard& motherBoard);
+		explicit SlottedMemoryDebug(MSXMotherBoard& motherBoard);
 		byte read(unsigned address, EmuTime::param time) override;
 		void write(unsigned address, byte value, EmuTime::param time) override;
 	} slottedMemoryDebug;
 
 	struct IODebug final : SimpleDebuggable {
-		IODebug(MSXMotherBoard& motherBoard);
+		explicit IODebug(MSXMotherBoard& motherBoard);
 		byte read(unsigned address, EmuTime::param time) override;
 		void write(unsigned address, byte value, EmuTime::param time) override;
 	} ioDebug;
 
 	struct SlotInfo final : InfoTopic {
-		SlotInfo(InfoCommand& machineInfoCommand);
+		explicit SlotInfo(InfoCommand& machineInfoCommand);
 		void execute(array_ref<TclObject> tokens,
 			     TclObject& result) const override;
 		std::string help(const std::vector<std::string>& tokens) const override;
 	} slotInfo;
 
 	struct SubSlottedInfo final : InfoTopic {
-		SubSlottedInfo(InfoCommand& machineInfoCommand);
+		explicit SubSlottedInfo(InfoCommand& machineInfoCommand);
 		void execute(array_ref<TclObject> tokens,
 			     TclObject& result) const override;
 		std::string help(const std::vector<std::string>& tokens) const override;
 	} subSlottedInfo;
 
 	struct ExternalSlotInfo final : InfoTopic {
-		ExternalSlotInfo(InfoCommand& machineInfoCommand);
+		explicit ExternalSlotInfo(InfoCommand& machineInfoCommand);
 		void execute(array_ref<TclObject> tokens,
 			     TclObject& result) const override;
 		std::string help(const std::vector<std::string>& tokens) const override;
@@ -321,13 +339,13 @@ private:
 		std::string help(const std::vector<std::string>& tokens) const override;
 	};
 	struct IInfo final : IOInfo {
-		IInfo(InfoCommand& machineInfoCommand)
+		explicit IInfo(InfoCommand& machineInfoCommand)
 			: IOInfo(machineInfoCommand, "input_port") {}
 		void execute(array_ref<TclObject> tokens,
 		             TclObject& result) const override;
 	} inputPortInfo;
 	struct OInfo final : IOInfo {
-		OInfo(InfoCommand& machineInfoCommand)
+		explicit OInfo(InfoCommand& machineInfoCommand)
 			: IOInfo(machineInfoCommand, "output_port") {}
 		void execute(array_ref<TclObject> tokens,
 		             TclObject& result) const override;

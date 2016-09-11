@@ -33,21 +33,27 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Developer|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Developer|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -124,6 +130,9 @@
       <AdditionalOptions>/LTCG %(AdditionalOptions)</AdditionalOptions>
       <TargetMachine>MachineX86</TargetMachine>
     </Lib>
+    <PreBuildEvent>
+      <Command>copy $(ThirdPartySrcDir)\$(LibNameLibPng)\scripts\pnglibconf.h.prebuilt $(ThirdPartySrcDir)\$(LibNameLibPng)\pnglibconf.h</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Midl>
@@ -154,6 +163,9 @@
       <AdditionalOptions>/LTCG %(AdditionalOptions)</AdditionalOptions>
       <TargetMachine>MachineX64</TargetMachine>
     </Lib>
+    <PreBuildEvent>
+      <Command>copy $(ThirdPartySrcDir)\$(LibNameLibPng)\scripts\pnglibconf.h.prebuilt $(ThirdPartySrcDir)\$(LibNameLibPng)\pnglibconf.h</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -173,6 +185,9 @@
     <Lib>
       <TargetMachine>MachineX86</TargetMachine>
     </Lib>
+    <PreBuildEvent>
+      <Command>copy $(ThirdPartySrcDir)\$(LibNameLibPng)\scripts\pnglibconf.h.prebuilt $(ThirdPartySrcDir)\$(LibNameLibPng)\pnglibconf.h</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Midl>
@@ -195,6 +210,9 @@
     <Lib>
       <TargetMachine>MachineX64</TargetMachine>
     </Lib>
+    <PreBuildEvent>
+      <Command>copy $(ThirdPartySrcDir)\$(LibNameLibPng)\scripts\pnglibconf.h.prebuilt $(ThirdPartySrcDir)\$(LibNameLibPng)\pnglibconf.h</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Developer|Win32'">
     <ClCompile>
@@ -215,6 +233,9 @@
     <Lib>
       <TargetMachine>MachineX86</TargetMachine>
     </Lib>
+    <PreBuildEvent>
+      <Command>copy $(ThirdPartySrcDir)\$(LibNameLibPng)\scripts\pnglibconf.h.prebuilt $(ThirdPartySrcDir)\$(LibNameLibPng)\pnglibconf.h</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Developer|x64'">
     <Midl>
@@ -238,6 +259,9 @@
     <Lib>
       <TargetMachine>MachineX64</TargetMachine>
     </Lib>
+    <PreBuildEvent>
+      <Command>copy $(ThirdPartySrcDir)\$(LibNameLibPng)\scripts\pnglibconf.h.prebuilt $(ThirdPartySrcDir)\$(LibNameLibPng)\pnglibconf.h</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="$(ThirdPartySrcDir)\$(LibNameLibPng)\png.c" />
@@ -264,7 +288,7 @@
     <ClInclude Include="$(ThirdPartySrcDir)\$(LibNameLibPng)\pngconf.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="$(ThirdPartySrcDir)\$(LibNameLibPng)\scripts\pngw32.rc" />
+    <ResourceCompile Include="$(ThirdPartySrcDir)\$(LibNameLibPng)\scripts\pngwin.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

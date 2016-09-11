@@ -38,28 +38,34 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Developer|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Developer|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -389,6 +395,7 @@
     <ClCompile Include="$(OpenMSXSrcDir)\fdc\MSXtar.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\fdc\NationalFDC.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\fdc\SanyoFDC.cc" />
+    <ClCompile Include="$(OpenMSXSrcDir)\fdc\SpectravideoFDC.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\fdc\VictorFDC.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\fdc\NowindCommand.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\fdc\NowindHost.cc" />
@@ -462,6 +469,7 @@
     <ClCompile Include="$(OpenMSXSrcDir)\memory\RomSuperSwangi.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\memory\AmdFlash.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\memory\CheckedRam.cc" />
+    <ClCompile Include="$(OpenMSXSrcDir)\memory\TrackedRam.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\memory\ESE_RAM.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\memory\ESE_SCC.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\memory\FraelSwitchableROM.cc" />
@@ -524,6 +532,7 @@
     <ClCompile Include="$(OpenMSXSrcDir)\memory\RomZemina80in1.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\memory\RomZemina90in1.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\memory\SRAM.cc" />
+    <ClCompile Include="$(OpenMSXSrcDir)\memory\KonamiUltimateCollection.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\memory\MegaFlashRomSCCPlus.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\memory\MegaFlashRomSCCPlusSD.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\memory\SdCard.cc" />
@@ -591,6 +600,7 @@
     <ClCompile Include="$(OpenMSXSrcDir)\sound\YMF278.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\thread\Thread.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\thread\Timer.cc" />
+    <ClCompile Include="$(OpenMSXSrcDir)\utils\DeltaBlock.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\Tiger.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\TigerTree.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\AltSpaceSuppressor.cc" />
@@ -743,6 +753,7 @@
     <ClCompile Include="$(OpenMSXSrcDir)\Autofire.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\CartridgeSlotManager.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\CliExtension.cc" />
+    <ClCompile Include="$(OpenMSXSrcDir)\ChakkariCopy.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\CLIOption.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\CommandLineParser.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\Connector.cc" />
@@ -804,6 +815,10 @@
     <ClCompile Include="$(OpenMSXSrcDir)\serialize_meta.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\ThrottleManager.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\Version.cc" />
+	<ClCompile Include="$(OpenMSXSrcDir)\sound\SVIPSG.cc" />
+	<ClCompile Include="$(OpenMSXSrcDir)\fdc\SVIFDC.cc" />
+	<ClCompile Include="$(OpenMSXSrcDir)\SVIPrinterPort.cc" />
+	<ClCompile Include="$(OpenMSXSrcDir)\SVIPPI.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\MSXCielTurbo.cc" />
   </ItemGroup>
   <ItemGroup>
@@ -914,6 +929,7 @@
     <None Include="$(OpenMSXSrcDir)\fdc\MSXtar.hh" />
     <None Include="$(OpenMSXSrcDir)\fdc\NationalFDC.hh" />
     <None Include="$(OpenMSXSrcDir)\fdc\SanyoFDC.hh" />
+    <None Include="$(OpenMSXSrcDir)\fdc\SpectravideoFDC.hh" />
     <None Include="$(OpenMSXSrcDir)\fdc\VictorFDC.hh" />
     <None Include="$(OpenMSXSrcDir)\fdc\NowindCommand.hh" />
     <None Include="$(OpenMSXSrcDir)\fdc\NowindHost.hh" />
@@ -993,6 +1009,7 @@
     <None Include="$(OpenMSXSrcDir)\memory\RomSuperSwangi.hh" />
     <None Include="$(OpenMSXSrcDir)\memory\AmdFlash.hh" />
     <None Include="$(OpenMSXSrcDir)\memory\CheckedRam.hh" />
+    <None Include="$(OpenMSXSrcDir)\memory\TrackedRam.hh" />
     <None Include="$(OpenMSXSrcDir)\memory\ESE_RAM.hh" />
     <None Include="$(OpenMSXSrcDir)\memory\ESE_SCC.hh" />
     <None Include="$(OpenMSXSrcDir)\memory\FraelSwitchableROM.hh" />
@@ -1056,6 +1073,7 @@
     <None Include="$(OpenMSXSrcDir)\memory\RomZemina80in1.hh" />
     <None Include="$(OpenMSXSrcDir)\memory\RomZemina90in1.hh" />
     <None Include="$(OpenMSXSrcDir)\memory\SRAM.hh" />
+    <None Include="$(OpenMSXSrcDir)\memory\KonamiUltimateCollection.hh" />
     <None Include="$(OpenMSXSrcDir)\memory\MegaFlashRomSCCPlus.hh" />
     <None Include="$(OpenMSXSrcDir)\memory\MegaFlashRomSCCPlusSD.hh" />
     <None Include="$(OpenMSXSrcDir)\memory\SdCard.cc.hh" />
@@ -1137,6 +1155,7 @@
     <None Include="$(OpenMSXSrcDir)\utils\Aligned.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\hash_map.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\hash_set.hh" />
+    <None Include="$(OpenMSXSrcDir)\utils\DeltaBlock.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\Tiger.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\TigerTree.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\AltSpaceSuppressor.hh" />
@@ -1358,6 +1377,7 @@
     <None Include="$(OpenMSXSrcDir)\Autofire.hh" />
     <None Include="$(OpenMSXSrcDir)\CartridgeSlotManager.hh" />
     <None Include="$(OpenMSXSrcDir)\CliExtension.hh" />
+    <None Include="$(OpenMSXSrcDir)\ChakkariCopy.hh" />
     <None Include="$(OpenMSXSrcDir)\CLIOption.hh" />
     <None Include="$(OpenMSXSrcDir)\Clock.hh" />
     <None Include="$(OpenMSXSrcDir)\CommandLineParser.hh" />
@@ -1517,6 +1537,10 @@ popd</Command>
     <None Include="$(OpenMSXSrcDir)\serialize_stl.hh" />
     <None Include="$(OpenMSXSrcDir)\ThrottleManager.hh" />
     <None Include="$(OpenMSXSrcDir)\Version.hh" />
+	<None Include="$(OpenMSXSrcDir)\sound\SVIPSG.hh" />
+	<None Include="$(OpenMSXSrcDir)\fdc\SVIFDC.hh" />
+	<None Include="$(OpenMSXSrcDir)\SVIPrinterPort.hh" />
+	<None Include="$(OpenMSXSrcDir)\SVIPPI.hh" />
     <None Include="$(OpenMSXSrcDir)\MSXCielTurbo.hh" />
   </ItemGroup>
   <ItemGroup>

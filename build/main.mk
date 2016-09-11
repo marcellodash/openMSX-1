@@ -65,7 +65,7 @@ endif
 # Logical targets which require dependency files.
 DEPEND_TARGETS:=all default install run bindist
 # Logical targets which do not require dependency files.
-NODEPEND_TARGETS:=clean config probe 3rdparty staticbindist
+NODEPEND_TARGETS:=clean config probe 3rdparty run-3rdparty staticbindist
 # Mark all logical targets as such.
 .PHONY: $(DEPEND_TARGETS) $(NODEPEND_TARGETS)
 
@@ -98,12 +98,10 @@ BOOLCHECK=$(DEFCHECK)$(strip \
 #       platform specific flags.
 CXXFLAGS:=
 COMPILE_FLAGS:=
-COMPILE_ENV:=
 # Note: LDFLAGS are passed to the linker itself, LINK_FLAGS are passed to the
 #       compiler in the link phase.
 LDFLAGS:=
 LINK_FLAGS:=
-LINK_ENV:=
 # Flags that specify the target platform.
 # These should be inherited by the 3rd party libs Makefile.
 TARGET_FLAGS:=
@@ -152,13 +150,6 @@ endif
 # Note that the include above will force a reload of the Makefile.
 ifneq ($(PLATFORM),)
 
-# List of CPUs to compile for.
-ifeq ($(OPENMSX_TARGET_CPU),univ)
-CPU_LIST:=x86 x86_64
-else
-CPU_LIST:=$(OPENMSX_TARGET_CPU)
-endif
-
 # Default flavour.
 $(call DEFCHECK,OPENMSX_TARGET_CPU)
 ifeq ($(OPENMSX_TARGET_CPU),x86)
@@ -194,19 +185,15 @@ $(call DEFCHECK,EXEEXT)
 # - platform supports symlinks?
 $(call BOOLCHECK,USE_SYMLINK)
 
-ifneq ($(OPENMSX_TARGET_CPU),univ)
 # Get CPU specific flags.
 TARGET_FLAGS+=$(shell $(PYTHON) build/cpu2flags.py $(OPENMSX_TARGET_CPU))
-endif
 
 
 # Flavours
 # ========
 
-ifneq ($(OPENMSX_TARGET_CPU),univ)
 # Load flavour specific settings.
 include build/flavour-$(OPENMSX_FLAVOUR).mk
-endif
 
 
 # Paths
@@ -259,12 +246,10 @@ GENERATED_HEADERS:=$(VERSION_HEADER) $(CONFIG_HEADER) $(COMPONENTS_HEADER)
 # Configuration
 # =============
 
-ifneq ($(OPENMSX_TARGET_CPU),univ)
 ifneq ($(filter $(DEPEND_TARGETS),$(MAKECMDGOALS)),)
 -include $(PROBE_MAKE)
 -include $(COMPONENTS_DEFS)
 endif # goal requires dependencies
-endif # universal binary
 
 
 # Filesets
@@ -433,7 +418,7 @@ endif
 $(PROBE_MAKE): $(PROBE_SCRIPT) build/custom.mk \
 		build/systemfuncs2code.py build/systemfuncs.py
 	$(CMD)$(PYTHON) $(PROBE_SCRIPT) \
-		"$(COMPILE_ENV) $(CXX) $(TARGET_FLAGS)" \
+		"$(CXX) $(TARGET_FLAGS)" \
 		$(@D) $(OPENMSX_TARGET_OS) $(LINK_MODE) "$(3RDPARTY_INSTALL_DIR)"
 	$(CMD)touch $@
 
@@ -537,7 +522,7 @@ $(OBJECTS_FULL): $(OBJECTS_PATH)/%.o: $(SOURCES_PATH)/%.cc $(DEPEND_PATH)/%.d
 	$(SUM) "Compiling $(patsubst $(SOURCES_PATH)/%,%,$<)..."
 	$(CMD)mkdir -p $(@D)
 	$(CMD)mkdir -p $(patsubst $(OBJECTS_PATH)%,$(DEPEND_PATH)%,$(@D))
-	$(CMD)$(COMPILE_ENV) $(CXX) \
+	$(CMD)$(CXX) \
 		$(DEPEND_FLAGS) -MMD -MF $(DEPEND_SUBST) \
 		-o $@ $(CXXFLAGS) $(COMPILE_FLAGS) -c $<
 	$(CMD)touch $@ # Force .o file to be newer than .d file.
@@ -557,30 +542,11 @@ $(RESOURCE_OBJ): $(RESOURCE_SRC) $(RESOURCE_HEADER)
 endif
 
 # Link executable.
-ifeq ($(OPENMSX_TARGET_CPU),univ)
-BINARY_FOR_CPU=$(BINARY_FULL:derived/univ-%=derived/$(1)-%)
-SINGLE_CPU_BINARIES=$(foreach CPU,$(CPU_LIST),$(call BINARY_FOR_CPU,$(CPU)))
-
-.PHONY: $(SINGLE_CPU_BINARIES)
-$(SINGLE_CPU_BINARIES):
-	$(SUM) "Start compile for $(firstword $(subst -, ,$(@:derived/%=%))) CPU..."
-	$(CMD)$(MAKE) -f build/main.mk all \
-		OPENMSX_TARGET_CPU=$(firstword $(subst -, ,$(@:derived/%=%))) \
-		OPENMSX_TARGET_OS=$(OPENMSX_TARGET_OS) \
-		OPENMSX_FLAVOUR=$(OPENMSX_FLAVOUR) \
-		3RDPARTY_FLAG=$(3RDPARTY_FLAG) \
-		PYTHON=$(PYTHON)
-	$(SUM) "Finished compile for $(firstword $(subst -, ,$(@:derived/%=%))) CPU."
-
-$(BINARY_FULL): $(SINGLE_CPU_BINARIES)
-	$(CMD)mkdir -p $(@D)
-	$(CMD)lipo -create $^ -output $@
-else
 $(BINARY_FULL): $(OBJECTS_FULL) $(RESOURCE_OBJ)
 ifeq ($(OPENMSX_SUBSET),)
 	$(SUM) "Linking $(notdir $@)..."
 	$(CMD)mkdir -p $(@D)
-	$(CMD)+$(LINK_ENV) $(CXX) -o $@ $(CXXFLAGS) $^ $(LINK_FLAGS)
+	$(CMD)+$(CXX) -o $@ $(CXXFLAGS) $^ $(LINK_FLAGS)
   ifeq ($(STRIP_SEPARATE),true)
 	$(SUM) "Stripping $(notdir $@)..."
 	$(CMD)strip $@
@@ -593,12 +559,11 @@ ifeq ($(OPENMSX_SUBSET),)
 else
 	$(SUM) "Not linking $(notdir $@) because only a subset was built."
 endif # subset
-endif # universal binary
 
 $(LIBRARY_FULL): $(OBJECTS_FULL) $(RESOURCE_OBJ)
 	$(SUM) "Linking $(notdir $@)..."
 	$(CMD)mkdir -p $(@D)
-	$(CMD)$(LINK_ENV) $(CXX) -o $@ $(CXXFLAGS) $^ $(LINK_FLAGS)
+	$(CMD)$(CXX) -o $@ $(CXXFLAGS) $^ $(LINK_FLAGS)
 
 # Run executable.
 run: all
@@ -652,7 +617,7 @@ include build/package-darwin/app.mk
 else
 ifeq ($(OPENMSX_TARGET_OS),dingux)
 # ZIP file package for Dingux.
-include build/package-dingux/zip.mk
+include build/package-dingux/opk.mk
 else
 # Note: Use OPENMSX_INSTALL only to create binary packages.
 #       To change installation dir for actual installations, edit "custom.mk".
@@ -684,16 +649,10 @@ dist:
 # Binary Packaging Using 3rd Party Libraries
 # ==========================================
 
-.PHONY: $(addprefix 3rdparty-,$(CPU_LIST)) run-3rdparty
-
-3rdparty: $(addprefix 3rdparty-,$(CPU_LIST))
-
-# Recursive invocation for different CPUs.
-# This is used even when building for a single CPU, since the OS and flavour
-# can differ.
-$(addprefix 3rdparty-,$(CPU_LIST)):
+# Recursive invocation with 3RDPARTY_FLAG=true.
+3rdparty:
 	$(MAKE) -f build/main.mk run-3rdparty \
-		OPENMSX_TARGET_CPU=$(@:3rdparty-%=%) \
+		OPENMSX_TARGET_CPU=$(OPENMSX_TARGET_CPU) \
 		OPENMSX_TARGET_OS=$(OPENMSX_TARGET_OS) \
 		OPENMSX_FLAVOUR=$(OPENMSX_FLAVOUR) \
 		3RDPARTY_FLAG=true \
@@ -709,7 +668,7 @@ run-3rdparty:
 		_CC=$(CC) _CFLAGS="$(TARGET_FLAGS) $(CXXFLAGS)" \
 		_LDFLAGS="$(TARGET_FLAGS)" \
 		WINDRES=$(WINDRES) \
-		LINK_MODE=$(LINK_MODE) $(COMPILE_ENV) \
+		LINK_MODE=$(LINK_MODE) \
 		PYTHON=$(PYTHON)
 
 staticbindist: 3rdparty

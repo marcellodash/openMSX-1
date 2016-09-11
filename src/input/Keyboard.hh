@@ -109,7 +109,9 @@ private:
 	StateChangeDistributor& stateChangeDistributor;
 
 	static const int MAX_KEYSYM = 0x150;
-	static const byte keyTab[MAX_KEYSYM];
+	static const byte msxKeyTab[MAX_KEYSYM];
+	static const byte sviKeyTab[MAX_KEYSYM];
+	const byte* keyTab;
 
 	struct KeyMatrixUpCmd final : RecordedCommand {
 		KeyMatrixUpCmd(CommandController& commandController,
@@ -202,7 +204,7 @@ private:
 	} msxKeyEventQueue;
 
 	struct KeybDebuggable final : SimpleDebuggable {
-		KeybDebuggable(MSXMotherBoard& motherBoard);
+		explicit KeybDebuggable(MSXMotherBoard& motherBoard);
 		byte read(unsigned address) override;
 		void write(unsigned address, byte value) override;
 	} keybDebuggable;

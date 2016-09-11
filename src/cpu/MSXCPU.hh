@@ -110,8 +110,8 @@ public:
 	void setNextSyncPoint(EmuTime::param time);
 
 	void wait(EmuTime::param time);
-	void waitCycles(unsigned cycles);
-	void waitCyclesR800(unsigned cycles);
+	EmuTime waitCycles(EmuTime::param time, unsigned cycles);
+	EmuTime waitCyclesR800(EmuTime::param time, unsigned cycles);
 
 	CPURegs& getRegisters();
 
@@ -140,7 +140,7 @@ private:
 	const std::unique_ptr<CPUCore<R800TYPE>> r800; // can be nullptr
 
 	struct TimeInfoTopic final : InfoTopic {
-		TimeInfoTopic(InfoCommand& machineInfoCommand);
+		explicit TimeInfoTopic(InfoCommand& machineInfoCommand);
 		void execute(array_ref<TclObject> tokens,
 			     TclObject& result) const override;
 		std::string help (const std::vector<std::string>& tokens) const override;
@@ -160,7 +160,7 @@ private:
 	const std::unique_ptr<CPUFreqInfoTopic> r800FreqInfo; // can be nullptr
 
 	struct Debuggable final : SimpleDebuggable {
-		Debuggable(MSXMotherBoard& motherboard);
+		explicit Debuggable(MSXMotherBoard& motherboard);
 		byte read(unsigned address) override;
 		void write(unsigned address, byte value) override;
 	} debuggable;

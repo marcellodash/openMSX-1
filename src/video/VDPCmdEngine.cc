@@ -675,6 +675,10 @@ using TNotOp = TransparentOp<NotOp>;
 void VDPCmdEngine::calcFinishTime(unsigned nx, unsigned ny, unsigned ticksPerPixel)
 {
 	if (!CMD) return;
+	if (vdp.getBrokenCmdTiming()) {
+		statusChangeTime = EmuTime::zero; // will finish soon
+		return;
+	}
 
 	// Underestimation for when the command will be finished. This assumes
 	// we never have to wait for access slots and that there's no overhead
@@ -1211,7 +1215,8 @@ void VDPCmdEngine::startLmmc(EmuTime::param time)
 	ADX = DX;
 	ANX = tmpNX;
 	statusChangeTime = EmuTime::zero;
-	transfer = true;
+	// do not set 'transfer = true', this fixes bug#1014
+	// Baltak Rampage: characters in greetings part are one pixel offset
 	status |= 0x80;
 	engineTime = time; nextAccessSlot();
 }
@@ -1635,7 +1640,7 @@ void VDPCmdEngine::startHmmc(EmuTime::param time)
 	ADX = DX;
 	ANX = tmpNX;
 	statusChangeTime = EmuTime::zero;
-	transfer = true;
+	// do not set 'transfer = true', see startLmmc()
 	status |= 0x80;
 	engineTime = time; nextAccessSlot();
 }
@@ -1694,6 +1699,7 @@ VDPCmdEngine::VDPCmdEngine(VDP& vdp_, CommandController& commandController)
 	, hasExtendedVRAM(vram.getSize() == (192 * 1024))
 {
 	status = 0;
+	scrMode = -1;
 	transfer = false;
 	SX = SY = DX = DY = NX = NY = 0;
 	ASX = ADX = ANX = 0;
@@ -1702,11 +1708,11 @@ VDPCmdEngine::VDPCmdEngine(VDP& vdp_, CommandController& commandController)
 
 void VDPCmdEngine::reset(EmuTime::param time)
 {
-	status = 0;
-	scrMode = -1;
-	for (unsigned i = 0; i < 15; ++i) {
+	for (int i = 14; i >= 0; --i) { // start with ABORT
 		setCmdReg(i, 0, time);
 	}
+	status = 0;
+	scrMode = -1;
 
 	updateDisplayMode(vdp.getDisplayMode(), time);
 }

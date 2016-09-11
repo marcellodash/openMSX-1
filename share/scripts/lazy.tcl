@@ -15,7 +15,7 @@ register_lazy "_disasm.tcl" {
 	step_back step_out step_in step skip_instruction}
 register_lazy "_example_tools.tcl" {get_screen listing get_color_count}
 register_lazy "_filepool.tcl" {filepool get_paths_for_type}
-register_lazy "_guess_title.tcl" {guess_title guess_rom_title}
+register_lazy "_guess_title.tcl" {guess_title guess_rom_title guess_rom_device}
 register_lazy "_info_panel.tcl" toggle_info_panel
 register_lazy "_metal_gear_overlay.tcl" {toggle_metal_gear_overlay}
 register_lazy "_mog-overlay.tcl" {toggle_mog_overlay toggle_mog_editor}
@@ -71,6 +71,7 @@ register_lazy "_tileviewer.tcl" {showtile showall}
 register_lazy "_toggle_freq.tcl" toggle_freq
 register_lazy "_trainer.tcl" trainer
 register_lazy "_type_from_file.tcl" {type_from_file type_password_from_file}
+register_lazy "_type_via_keybuf.tcl" {type_via_keybuf}
 register_lazy "_utils.tcl" {
 	get_machine_display_name get_machine_display_name_by_config_name
 	get_extension_display_name_by_config_name

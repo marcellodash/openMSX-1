@@ -12,6 +12,9 @@
 #include "FileOperations.hh"
 #include "FileContext.hh"
 #include "StateChange.hh"
+#include "Timer.hh"
+#include "CliComm.hh"
+#include "Display.hh"
 #include "Reactor.hh"
 #include "CommandException.hh"
 #include "MemBuffer.hh"
@@ -21,6 +24,7 @@
 #include "xrange.hh"
 #include <functional>
 #include <cassert>
+#include <cmath>
 
 using std::string;
 using std::vector;
@@ -52,7 +56,7 @@ static const char* const REPLAY_DIR = "replays";
 
 struct Replay
 {
-	Replay(Reactor& reactor_)
+	explicit Replay(Reactor& reactor_)
 		: reactor(reactor_), currentTime(EmuTime::dummy()) {}
 
 	Reactor& reactor;
@@ -115,7 +119,7 @@ class EndLogEvent final : public StateChange
 {
 public:
 	EndLogEvent() {} // for serialize
-	EndLogEvent(EmuTime::param time_)
+	explicit EndLogEvent(EmuTime::param time_)
 		: StateChange(time_)
 	{
 	}
@@ -324,6 +328,20 @@ void ReverseManager::goTo(EmuTime::param target, bool novideo)
 	goTo(target, novideo, history, true); // move in current time-line
 }
 
+// this function is used below, but factored out, because it's already way too long
+static void reportProgress(Reactor& reactor, const EmuTime& targetTime, int percentage)
+{
+	double targetTimeDisp = (targetTime - EmuTime::zero).toDouble();
+	std::ostringstream sstr;
+	sstr << "Time warping to " <<
+		int(targetTimeDisp / 60) << ':' << std::setfill('0') <<
+		std::setw(5) << std::setprecision(2) << std::fixed <<
+		std::fmod(targetTimeDisp, 60.0) <<
+		"... " << percentage << '%';
+	reactor.getCliComm().printProgress(sstr.str());
+	reactor.getDisplay().repaint();
+}
+
 void ReverseManager::goTo(
 	EmuTime::param target, bool novideo, ReverseHistory& hist,
 	bool sameTimeLine)
@@ -371,7 +389,8 @@ void ReverseManager::goTo(
 		// one that's not newer (thus older or equal).
 		assert(it != begin(hist.chunks));
 		--it;
-		EmuTime snapshotTime = it->second.time;
+		ReverseChunk& chunk = it->second;
+		EmuTime snapshotTime = chunk.time;
 		assert(snapshotTime <= preTarget);
 
 		// IF current time is before the wanted time AND either
@@ -396,8 +415,9 @@ void ReverseManager::goTo(
 			// -- restore old snapshot --
 			newBoard_ = reactor.createEmptyMotherBoard();
 			newBoard = newBoard_.get();
-			MemInputArchive in(it->second.savestate.data(),
-					   it->second.size);
+			MemInputArchive in(chunk.savestate.data(),
+					   chunk.size,
+					   chunk.deltaBlocks);
 			in.serialize("machine", *newBoard);
 
 			if (eventDelay) {
@@ -418,7 +438,7 @@ void ReverseManager::goTo(
 			// Also we should stop collecting in this ReverseManager,
 			// and start collecting in the new one.
 			auto& newManager = newBoard->getReverseManager();
-			newManager.transferHistory(hist, it->second.eventCount);
+			newManager.transferHistory(hist, chunk.eventCount);
 
 			// transfer (or copy) state from old to new machine
 			transferState(*newBoard);
@@ -434,20 +454,44 @@ void ReverseManager::goTo(
 		// at least the usual interval, but the later, the more: each
 		// time divide the remaining time in half and make a snapshot
 		// there.
+		auto lastProgress = Timer::getTime();
+		auto startMSXTime = newBoard->getCurrentTime();
+		auto lastSnapshotTarget = startMSXTime;
+		bool everShowedProgress = false;
+		syncNewSnapshot.removeSyncPoint(); // don't schedule new snapshot takings during fast forward
 		while (true) {
-			EmuTime nextTarget = std::min(
+			auto currentTimeNewBoard = newBoard->getCurrentTime();
+			auto nextSnapshotTarget = std::min(
 				preTarget,
-				newBoard->getCurrentTime() + std::max(
+				lastSnapshotTarget + std::max(
 					EmuDuration(SNAPSHOT_PERIOD),
-					(preTarget - newBoard->getCurrentTime()) / 2
+					(preTarget - lastSnapshotTarget) / 2
 					));
+			auto nextTarget = std::min(nextSnapshotTarget, currentTimeNewBoard + EmuDuration::sec(1));
 			newBoard->fastForward(nextTarget, true);
+			auto now = Timer::getTime();
+			if (((now - lastProgress) > 1000000) || ((currentTimeNewBoard >= preTarget) && everShowedProgress)) {
+				everShowedProgress = true;
+				lastProgress = now;
+				int percentage = ((currentTimeNewBoard - startMSXTime) * 100u) / (preTarget - startMSXTime);
+				reportProgress(newBoard->getReactor(), targetTime, percentage);
+			}
 			// note: fastForward does not always stop at
 			//       _exactly_ the requested time
-			if (newBoard->getCurrentTime() >= preTarget) break;
-			newBoard->getReverseManager().takeSnapshot(
-				newBoard->getCurrentTime());
+			if (currentTimeNewBoard >= preTarget) break;
+			if (currentTimeNewBoard >= nextSnapshotTarget) {
+				// NOTE: there used to be
+				//newBoard->getReactor().getEventDistributor().deliverEvents();
+				// here, but that has all kinds of nasty side effects: it enables
+				// processing of hotkeys, which can cause things like the machine
+				// being deleted, causing a crash. TODO: find a better way to support
+				// live updates of the UI whilst being in a reverse action...
+				newBoard->getReverseManager().takeSnapshot(currentTimeNewBoard);
+				lastSnapshotTarget = nextSnapshotTarget;
+			}
 		}
+		// re-enable automatic snapshots
+		schedule(getCurrentTime());
 
 		// switch to the new MSXMotherBoard
 		//  Note: this deletes the current MSXMotherBoard and
@@ -553,7 +597,8 @@ void ReverseManager::saveReplay(
 	// restore first snapshot to be able to serialize it to a file
 	auto initialBoard = reactor.createEmptyMotherBoard();
 	MemInputArchive in(begin(chunks)->second.savestate.data(),
-	                   begin(chunks)->second.size);
+	                   begin(chunks)->second.size,
+			   begin(chunks)->second.deltaBlocks);
 	in.serialize("machine", *initialBoard);
 	replay.motherBoards.push_back(move(initialBoard));
 
@@ -581,7 +626,8 @@ void ReverseManager::saveReplay(
 					// this is a new one, add it to the list of snapshots
 					Reactor::Board board = reactor.createEmptyMotherBoard();
 					MemInputArchive in2(it->second.savestate.data(),
-							    it->second.size);
+							    it->second.size,
+							    it->second.deltaBlocks);
 					in2.serialize("machine", *board);
 					replay.motherBoards.push_back(move(board));
 					lastAddedIt = it;
@@ -723,7 +769,8 @@ void ReverseManager::loadReplay(
 		ReverseChunk newChunk;
 		newChunk.time = m->getCurrentTime();
 
-		MemOutputArchive out;
+		MemOutputArchive out(newHistory.lastDeltaBlocks,
+		                     newChunk.deltaBlocks, false);
 		out.serialize("machine", *m);
 		newChunk.savestate = out.releaseBuffer(newChunk.size);
 
@@ -753,6 +800,9 @@ void ReverseManager::transferHistory(ReverseHistory& oldHistory,
 {
 	assert(!isCollecting());
 	assert(history.chunks.empty());
+
+	// 'ids' for old and new serialize blobs don't match, so cleanup old cache
+	oldHistory.lastDeltaBlocks.clear();
 
 	// actual history transfer
 	history.swap(oldHistory);
@@ -860,9 +910,10 @@ void ReverseManager::takeSnapshot(EmuTime::param time)
 	// the same moment in time).
 
 	// actually create new snapshot
-	MemOutputArchive out;
-	out.serialize("machine", motherBoard);
 	ReverseChunk& newChunk = history.chunks[seqNum];
+	newChunk.deltaBlocks.clear();
+	MemOutputArchive out(history.lastDeltaBlocks, newChunk.deltaBlocks, true);
+	out.serialize("machine", motherBoard);
 	newChunk.time = time;
 	newChunk.savestate = out.releaseBuffer(newChunk.size);
 	newChunk.eventCount = replayIndex;
