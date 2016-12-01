@@ -1,10 +1,10 @@
 #ifndef CLISERVER_HH
 #define CLISERVER_HH
 
-#include "Thread.hh"
+#include "Poller.hh"
 #include "Socket.hh"
-#include <atomic>
 #include <string>
+#include <thread>
 
 namespace openmsx {
 
@@ -12,7 +12,7 @@ class CommandController;
 class EventDistributor;
 class GlobalCliComm;
 
-class CliServer final : private Runnable
+class CliServer final
 {
 public:
 	CliServer(CommandController& commandController,
@@ -21,9 +21,6 @@ public:
 	~CliServer();
 
 private:
-	// Runnable
-	void run() override;
-
 	void mainLoop();
 	SOCKET createSocket();
 	void exitAcceptLoop();
@@ -32,13 +29,10 @@ private:
 	EventDistributor& eventDistributor;
 	GlobalCliComm& cliComm;
 
-	Thread thread;
+	std::thread thread;
 	std::string socketName;
 	SOCKET listenSock;
-#ifndef _WIN32
-	int wakeupPipe[2];
-#endif
-	std::atomic_bool exitLoop;
+	Poller poller;
 };
 
 } // namespace openmsx

@@ -68,7 +68,6 @@ private:
 CliConnection::CliConnection(CommandController& commandController_,
                              EventDistributor& eventDistributor_)
 	: parser([this](const std::string& cmd) { execute(cmd); })
-	, thread(this)
 	, commandController(commandController_)
 	, eventDistributor(eventDistributor_)
 {
@@ -118,7 +117,7 @@ void CliConnection::startOutput()
 
 void CliConnection::start()
 {
-	thread.start();
+	thread = std::thread([this]() { run(); });
 }
 
 void CliConnection::end()
@@ -163,7 +162,6 @@ static const int BUF_SIZE = 4096;
 StdioConnection::StdioConnection(CommandController& commandController_,
                                  EventDistributor& eventDistributor_)
 	: CliConnection(commandController_, eventDistributor_)
-	, ok(true)
 {
 	startOutput();
 }
@@ -176,13 +174,17 @@ StdioConnection::~StdioConnection()
 void StdioConnection::run()
 {
 	// runs in helper thread
-	while (ok) {
+	while (true) {
+#ifdef _WIN32
+		if (poller.aborted()) break;
+#else
+		if (poller.poll(STDIN_FILENO)) break;
+#endif
 		char buf[BUF_SIZE];
 		int n = read(STDIN_FILENO, buf, sizeof(buf));
 		if (n > 0) {
 			parser.parse(buf, n);
 		} else if (n < 0) {
-			close();
 			break;
 		}
 	}
@@ -190,15 +192,14 @@ void StdioConnection::run()
 
 void StdioConnection::output(string_ref message)
 {
-	if (ok) {
-		std::cout << message << std::flush;
-	}
+	std::cout << message << std::flush;
 }
 
 void StdioConnection::close()
 {
 	// don't close stdin/out/err
-	ok = false;
+	poller.abort();
+	thread.join();
 }
 
 
@@ -332,14 +333,14 @@ void SocketConnection::run()
 #ifdef _WIN32
 	bool ok;
 	{
-		std::lock_guard<std::mutex> lock(mutex);
+		std::lock_guard<std::mutex> lock(sdMutex);
 		// Authenticate and authorize the caller
 		SocketStreamWrapper stream(sd);
 		SspiNegotiateServer server(stream);
 		ok = server.Authenticate() && server.Authorize();
 	}
 	if (!ok) {
-		close();
+		closeSocket();
 		return;
 	}
 #endif
@@ -352,15 +353,20 @@ void SocketConnection::run()
 	// and 'sd' only gets written to in this thread.
 	while (true) {
 		if (sd == OPENMSX_INVALID_SOCKET) return;
+#ifndef _WIN32
+		if (poller.poll(sd)) {
+			break;
+		}
+#endif
 		char buf[BUF_SIZE];
 		int n = sock_recv(sd, buf, BUF_SIZE);
 		if (n > 0) {
 			parser.parse(buf, n);
 		} else if (n < 0) {
-			close();
 			break;
 		}
 	}
+	closeSocket();
 }
 
 void SocketConnection::output(string_ref message)
@@ -376,7 +382,7 @@ void SocketConnection::output(string_ref message)
 	while (bytesLeft) {
 		int bytesSend;
 		{
-			std::lock_guard<std::mutex> lock(mutex);
+			std::lock_guard<std::mutex> lock(sdMutex);
 			if (sd == OPENMSX_INVALID_SOCKET) return;
 			bytesSend = sock_send(sd, &data[pos], bytesLeft);
 		}
@@ -390,14 +396,23 @@ void SocketConnection::output(string_ref message)
 	}
 }
 
-void SocketConnection::close()
+void SocketConnection::closeSocket()
 {
-	std::lock_guard<std::mutex> lock(mutex);
+	std::lock_guard<std::mutex> lock(sdMutex);
 	if (sd != OPENMSX_INVALID_SOCKET) {
 		SOCKET _sd = sd;
 		sd = OPENMSX_INVALID_SOCKET;
 		sock_close(_sd);
 	}
+}
+
+void SocketConnection::close()
+{
+	// Note: On Windows we rely on closing the socket to wake up the worker
+	//       thread, on other platforms we rely on Poller.
+	closeSocket();
+	poller.abort();
+	thread.join();
 }
 
 } // namespace openmsx

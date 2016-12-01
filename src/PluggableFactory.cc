@@ -48,6 +48,7 @@ void PluggableFactory::createAll(PluggingController& controller,
 	auto& stateChangeDistributor = motherBoard.getStateChangeDistributor();
 	auto& eventDistributor       = reactor.getEventDistributor();
 	auto& globalSettings         = reactor.getGlobalSettings();
+	auto& display                = reactor.getDisplay();
 	// Input devices:
 	// TODO: Support hot-plugging of input devices:
 	// - additional key joysticks can be created by the user
@@ -60,7 +61,7 @@ void PluggableFactory::createAll(PluggingController& controller,
 		msxEventDistributor, stateChangeDistributor));
 	controller.registerPluggable(make_unique<Touchpad>(
 		msxEventDistributor, stateChangeDistributor,
-		commandController));
+		display, commandController));
 	controller.registerPluggable(make_unique<JoyTap>(
 		controller, "joytap"));
 	controller.registerPluggable(make_unique<NinjaTap>(
@@ -97,8 +98,13 @@ void PluggableFactory::createAll(PluggingController& controller,
 		commandController));
 
 	// MIDI:
+#if !defined(_WIN32)
+	// Devices and pipes are not usable as files on Windows, and MidiInReader
+	// reads all data as soon as it becomes available, so this pluggable is
+	// not useful on Windows.
 	controller.registerPluggable(make_unique<MidiInReader>(
 		eventDistributor, scheduler, commandController));
+#endif
 #if defined(_WIN32)
 	MidiInWindows::registerAll(eventDistributor, scheduler, controller);
 	MidiOutWindows::registerAll(controller);

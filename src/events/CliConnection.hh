@@ -2,13 +2,14 @@
 #define CLICONNECTION_HH
 
 #include "CliListener.hh"
-#include "Thread.hh"
 #include "EventListener.hh"
 #include "Socket.hh"
 #include "CliComm.hh"
 #include "AdhocCliCommParser.hh"
+#include "Poller.hh"
 #include <mutex>
 #include <string>
+#include <thread>
 
 namespace openmsx {
 
@@ -16,7 +17,6 @@ class CommandController;
 class EventDistributor;
 
 class CliConnection : public CliListener, private EventListener
-                    , protected Runnable
 {
 public:
 	void setUpdateEnable(CliComm::UpdateType type, bool value) {
@@ -59,9 +59,11 @@ protected:
 	void startOutput();
 
 	AdhocCliCommParser parser;
-	Thread thread; // TODO: Possible to make this private?
+	std::thread thread; // TODO: Possible to make this private?
 
 private:
+	virtual void run() = 0;
+
 	void execute(const std::string& command);
 
 	// CliListener
@@ -91,7 +93,7 @@ private:
 	void close() override;
 	void run() override;
 
-	bool ok;
+	Poller poller;
 };
 
 #ifdef _WIN32
@@ -127,9 +129,11 @@ public:
 private:
 	void close() override;
 	void run() override;
+	void closeSocket();
 
-	std::mutex mutex;
+	std::mutex sdMutex;
 	SOCKET sd;
+	Poller poller;
 	bool established;
 };
 

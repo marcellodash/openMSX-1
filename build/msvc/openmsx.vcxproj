@@ -557,7 +557,6 @@
     <ClCompile Include="$(OpenMSXSrcDir)\sound\BlipBuffer.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\sound\DACSound16S.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\sound\DACSound8U.cc" />
-    <ClCompile Include="$(OpenMSXSrcDir)\sound\DirectXSoundDriver.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\sound\DummyAudioInputDevice.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\sound\DummyY8950KeyboardDevice.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\sound\EmuTimer.cc" />
@@ -623,6 +622,7 @@
     <ClCompile Include="$(OpenMSXSrcDir)\utils\utf8_checked.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\win32-arggen.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\win32-dirent.cc" />
+    <ClCompile Include="$(OpenMSXSrcDir)\utils\Poller.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\video\ADVram.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\video\AviRecorder.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\video\AviWriter.cc" />
@@ -1104,7 +1104,6 @@
     <None Include="$(OpenMSXSrcDir)\sound\YM2413OkazakiTable.ii" />
     <None Include="$(OpenMSXSrcDir)\sound\DACSound16S.hh" />
     <None Include="$(OpenMSXSrcDir)\sound\DACSound8U.hh" />
-    <None Include="$(OpenMSXSrcDir)\sound\DirectXSoundDriver.hh" />
     <None Include="$(OpenMSXSrcDir)\sound\DummyAudioInputDevice.hh" />
     <None Include="$(OpenMSXSrcDir)\sound\DummyY8950KeyboardDevice.hh" />
     <None Include="$(OpenMSXSrcDir)\sound\EmuTimer.hh" />
@@ -1203,6 +1202,7 @@
     <None Include="$(OpenMSXSrcDir)\utils\vla.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\win32-arggen.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\win32-dirent.hh" />
+    <None Include="$(OpenMSXSrcDir)\utils\Poller.hh" />
     <None Include="$(OpenMSXSrcDir)\video\ADVram.hh" />
     <None Include="$(OpenMSXSrcDir)\video\AviRecorder.hh" />
     <None Include="$(OpenMSXSrcDir)\video\AviWriter.hh" />

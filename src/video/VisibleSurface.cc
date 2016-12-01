@@ -1,6 +1,7 @@
 #include "VisibleSurface.hh"
 #include "InitException.hh"
 #include "Icon.hh"
+#include "Display.hh"
 #include "RenderSettings.hh"
 #include "SDLSurfacePtr.hh"
 #include "FloatSetting.hh"
@@ -15,11 +16,6 @@
 #include "memory.hh"
 #include "build-info.hh"
 
-#if PLATFORM_MAEMO5
-#include <SDL_syswm.h>
-#define _NET_WM_STATE_ADD 1
-#endif
-
 #ifdef _WIN32
 #include <windows.h>
 static int lastWindowX = 0;
@@ -28,64 +24,14 @@ static int lastWindowY = 0;
 
 namespace openmsx {
 
-#if PLATFORM_MAEMO5
-static void setMaemo5WMHints(bool fullscreen)
-{
-	if (!fullscreen) {
-		// In windowed mode, stick with default settings.
-		return;
-	}
-	SDL_SysWMinfo info;
-	SDL_VERSION(&info.version);
-	// In SDL 1.2.14, the header states that 0 is returned for all failures,
-	// but the implementation returns 0 for not implemented and -1 for invalid
-	// version. Reported as bug 957:
-	//   http://bugzilla.libsdl.org/show_bug.cgi?id=957
-	if (SDL_GetWMInfo(&info) > 0) {
-		::Display* dpy = info.info.x11.display;
-		Window win = info.info.x11.fswindow;
-		if (win) {
-			// Tell the SDL event thread not to touch the X server until we are
-			// done with it.
-			info.info.x11.lock_func();
-			// Fetch atoms; create them if necessary.
-			Atom wmStateAtom =
-				XInternAtom(dpy, "_NET_WM_STATE", False);
-			Atom fullscreenAtom =
-				XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False);
-			Atom nonCompositedAtom =
-				XInternAtom(dpy, "_HILDON_NON_COMPOSITED_WINDOW", False);
-			// Unmap window, so we can remap it when properly configured.
-			XUnmapWindow(dpy, win);
-			// Tell window manager that we are running fullscreen.
-			// TODO: Wouldn't it be better if SDL did this?
-			XChangeProperty(
-				dpy, win, wmStateAtom, XA_ATOM, 32, PropModeReplace,
-				(unsigned char *)&fullscreenAtom, 1
-				);
-			// Disable compositor to improve painting performance.
-			int one = 1;
-			XChangeProperty(
-				dpy, win, nonCompositedAtom, XA_INTEGER, 32, PropModeReplace,
-				(unsigned char *)&one, 1
-				);
-			// Remap the window with the new settings.
-			XMapWindow(dpy, win);
-			// Resume the SDL event thread.
-			info.info.x11.unlock_func();
-		}
-	}
-}
-#endif
-
 VisibleSurface::VisibleSurface(
-		RenderSettings& renderSettings_,
+		Display& display_,
 		RTScheduler& rtScheduler,
 		EventDistributor& eventDistributor_,
 		InputEventGenerator& inputEventGenerator_,
 		CliComm& cliComm)
 	: RTSchedulable(rtScheduler)
-	, renderSettings(renderSettings_)
+	, display(display_)
 	, eventDistributor(eventDistributor_)
 	, inputEventGenerator(inputEventGenerator_)
 {
@@ -126,6 +72,7 @@ VisibleSurface::VisibleSurface(
 	// on Mac it seems to be necessary to grab input in full screen
 	// Note: this is duplicated from InputEventGenerator::setGrabInput
 	// in order to keep the settings in sync (grab when fullscreen)
+	auto& renderSettings = display.getRenderSettings();
 	SDL_WM_GrabInput((inputEventGenerator_.getGrabInput().getBoolean() ||
 			  renderSettings.getFullScreen())
 			?  SDL_GRAB_ON : SDL_GRAB_OFF);
@@ -145,6 +92,8 @@ VisibleSurface::VisibleSurface(
 
 void VisibleSurface::createSurface(unsigned width, unsigned height, int flags)
 {
+	if (getDisplay().getRenderSettings().getFullScreen()) flags |= SDL_FULLSCREEN;
+
 	// try default bpp
 	SDL_Surface* surf = SDL_SetVideoMode(width, height, 0, flags);
 	int bytepp = (surf ? surf->format->BytesPerPixel : 0);
@@ -179,11 +128,10 @@ void VisibleSurface::createSurface(unsigned width, unsigned height, int flags)
 		SDL_QuitSubSystem(SDL_INIT_VIDEO);
 		throw InitException("Could not open any screen: " + err);
 	}
+	getDisplay().setOutputScreenResolution(gl::ivec2(width, height));
 	setSDLSurface(surf);
 
-#if PLATFORM_MAEMO5
-	setMaemo5WMHints(flags & SDL_FULLSCREEN);
-#endif
+	updateWindowTitle();
 
 #ifdef _WIN32
 	// find our current location...
@@ -202,6 +150,8 @@ void VisibleSurface::createSurface(unsigned width, unsigned height, int flags)
 
 VisibleSurface::~VisibleSurface()
 {
+	getDisplay().setOutputScreenResolution({-1, -1});
+
 	eventDistributor.unregisterEventListener(
 		OPENMSX_MOUSE_MOTION_EVENT, *this);
 	eventDistributor.unregisterEventListener(
@@ -209,6 +159,7 @@ VisibleSurface::~VisibleSurface()
 	eventDistributor.unregisterEventListener(
 		OPENMSX_MOUSE_BUTTON_UP_EVENT, *this);
 	inputEventGenerator.getGrabInput().detach(*this);
+	auto& renderSettings = display.getRenderSettings();
 	renderSettings.getPointerHideDelaySetting().detach(*this);
 	renderSettings.getFullScreenSetting().detach(*this);
 
@@ -226,9 +177,9 @@ VisibleSurface::~VisibleSurface()
 	SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }
 
-void VisibleSurface::setWindowTitle(const std::string& title)
+void VisibleSurface::updateWindowTitle()
 {
-	SDL_WM_SetCaption(title.c_str(), nullptr);
+	SDL_WM_SetCaption(display.getWindowTitle().c_str(), nullptr);
 }
 
 bool VisibleSurface::setFullScreen(bool wantedState)
@@ -279,6 +230,7 @@ int VisibleSurface::signalEvent(const std::shared_ptr<const Event>& event)
 void VisibleSurface::updateCursor()
 {
 	cancelRT();
+	auto& renderSettings = display.getRenderSettings();
 	if (renderSettings.getFullScreen() ||
 	    inputEventGenerator.getGrabInput().getBoolean()) {
 		// always hide cursor in fullscreen or grabinput mode

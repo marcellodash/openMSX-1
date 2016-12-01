@@ -15,7 +15,6 @@ class Reactor;
 class CommandConsole;
 class EventDistributor;
 class InputEventGenerator;
-class RenderSettings;
 class Setting;
 class Display;
 class OSDGUI;
@@ -31,7 +30,7 @@ class VisibleSurface : public OutputSurface, public EventListener,
 {
 public:
 	virtual ~VisibleSurface();
-	void setWindowTitle(const std::string& title);
+	void updateWindowTitle();
 	bool setFullScreen(bool fullscreen);
 
 	/** When a complete frame is finished, call this method.
@@ -40,7 +39,7 @@ public:
 	  */
 	virtual void finish() = 0;
 
-	virtual std::unique_ptr<Layer> createSnowLayer(Display& display) = 0;
+	virtual std::unique_ptr<Layer> createSnowLayer() = 0;
 	virtual std::unique_ptr<Layer> createConsoleLayer(
 		Reactor& reactor, CommandConsole& console) = 0;
 	virtual std::unique_ptr<Layer> createOSDGUILayer(OSDGUI& gui) = 0;
@@ -51,8 +50,10 @@ public:
 	  */
 	virtual std::unique_ptr<OutputSurface> createOffScreenSurface() = 0;
 
+	Display& getDisplay() const { return display; }
+
 protected:
-	VisibleSurface(RenderSettings& renderSettings,
+	VisibleSurface(Display& display,
 	               RTScheduler& rtScheduler,
 	               EventDistributor& eventDistributor,
 	               InputEventGenerator& inputEventGenerator,
@@ -69,7 +70,7 @@ private:
 	// RTSchedulable
 	void executeRT() override;
 
-	RenderSettings& renderSettings;
+	Display& display;
 	EventDistributor& eventDistributor;
 	InputEventGenerator& inputEventGenerator;
 };
