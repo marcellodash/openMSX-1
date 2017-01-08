@@ -20,7 +20,7 @@ def detectCPU():
 		cpu = cpu[ : dashIndex]
 	if cpu in ('x86_64', 'amd64'):
 		return 'x86_64'
-	elif cpu in ('x86', 'i386', 'i486', 'i586', 'i686'):
+	elif cpu in ('x86', 'i386', 'i486', 'i586', 'i686') or sys.platform in ('win32'):
 		return 'x86'
 	elif cpu.startswith('ppc') or cpu.endswith('ppc') or cpu.startswith('power'):
 		return 'ppc64' if cpu.endswith('64') else 'ppc'
