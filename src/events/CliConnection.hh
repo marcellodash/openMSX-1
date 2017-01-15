@@ -59,7 +59,7 @@ protected:
 	void startOutput();
 
 	AdhocCliCommParser parser;
-	std::thread thread; // TODO: Possible to make this private?
+	Poller poller;
 
 private:
 	virtual void run() = 0;
@@ -77,6 +77,8 @@ private:
 	CommandController& commandController;
 	EventDistributor& eventDistributor;
 
+	std::thread thread;
+
 	bool updateEnabled[CliComm::NUM_UPDATES];
 };
 
@@ -92,8 +94,6 @@ public:
 private:
 	void close() override;
 	void run() override;
-
-	Poller poller;
 };
 
 #ifdef _WIN32
@@ -133,7 +133,6 @@ private:
 
 	std::mutex sdMutex;
 	SOCKET sd;
-	Poller poller;
 	bool established;
 };
 
