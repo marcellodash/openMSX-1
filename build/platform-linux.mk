@@ -13,6 +13,7 @@ LIBRARYEXT:=.so
 # out the linker flags based on the occurrence of the substring uclibc inside
 # the compiler executable name (e.g. for Dingoo we don't need to link against
 # librt).
+LINK_FLAGS:=-lbcm2835 -lpthread
 ifeq (,$(findstring uclibc,$(CXX)))
 	LINK_FLAGS+=-lrt
 endif

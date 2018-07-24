@@ -79,6 +79,10 @@
 #include "MSXException.hh"
 #include "memory.hh"
 #include "components.hh"
+#include "RPMCSlot.hh"
+
+#include <iostream>
+using namespace::std;
 
 #if COMPONENT_LASERDISC
 #include "PioneerLDControl.hh"
@@ -274,6 +278,9 @@ unique_ptr<MSXDevice> DeviceFactory::create(const DeviceConfig& conf)
 		result = make_unique<Carnivore2>(conf);
 	} else if (type == "T9769") {
 		// Ignore for now. We might want to create a real device for it later.
+	} else if (type == "RPMCSlot") {
+		result = make_unique<RPMCSlot>(conf);
+		cout << "RPMCSLot created\n";
 	} else {
 		throw MSXException("Unknown device \"", type,
 		                   "\" specified in configuration");

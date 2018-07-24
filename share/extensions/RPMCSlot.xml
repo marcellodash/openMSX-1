@@ -1,0 +1,21 @@
+<?xml version="1.0" ?>
+<!DOCTYPE msxconfig SYSTEM 'msxconfig2.dtd'>
+<msxconfig>
+  <info>
+    <name>RPMCSlot</name>
+    <manufacturer>Meesokim</manufacturer>
+    <code>RPMC-V1</code>
+    <release_year>2107</release_year>
+    <description>Raspberry Pi MSX Clone Slot</description>
+    <type>RPMCSlot</type>
+  </info>
+  <devices>
+    <primary slot="any">
+	   <RPMCSlot id="RPMC Slot">
+	   <mem base="0x0000" size="0xc000"/>
+	   <io base="0x7e" num="2"/>
+       <io base="0xc4" num="4"/>
+	   </RPMCSlot>
+    </primary>
+  </devices>
+</msxconfig>
