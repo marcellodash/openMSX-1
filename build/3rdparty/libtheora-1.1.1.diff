@@ -1,6 +1,19 @@
-diff -ru libtheora-1.1.1.org/configure libtheora-1.1.1/configure
---- libtheora-1.1.1.org/configure	2009-10-01 20:04:08.000000000 +0200
-+++ libtheora-1.1.1/configure	2014-04-05 00:00:32.000000000 +0200
+diff -rub libtheora-1.1.1.orig/config.guess libtheora-1.1.1/config.guess
+--- libtheora-1.1.1.orig/config.guess	2009-02-24 12:50:50.000000000 +0900
++++ libtheora-1.1.1/config.guess	2016-01-26 02:58:34.096380600 +0900
+@@ -762,6 +762,9 @@
+     i*:MINGW*:*)
+ 	echo ${UNAME_MACHINE}-pc-mingw32
+ 	exit 0 ;;
++    x*:MINGW*:*)
++	echo ${UNAME_MACHINE}-pc-mingw32
++	exit 0 ;;
+     i*:PW*:*)
+ 	echo ${UNAME_MACHINE}-pc-pw32
+ 	exit 0 ;;
+diff -rub libtheora-1.1.1.orig/configure libtheora-1.1.1/configure
+--- libtheora-1.1.1.orig/configure	2009-10-02 03:04:08.000000000 +0900
++++ libtheora-1.1.1/configure	2016-01-26 02:49:18.542770000 +0900
 @@ -11863,7 +11863,7 @@
          case $host in
          *)
