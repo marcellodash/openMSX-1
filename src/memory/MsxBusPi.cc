@@ -169,6 +169,8 @@ volatile unsigned *gpio1;
 #define MSX_SET_INPUT(g)  INP_GPIO(g)
 #define MSX_SET_CLOCK(g)  INP_GPIO(g); ALT0_GPIO(g)
 
+pthread_mutex_t mutex;
+
 int setup_io();
 int msxread(int slot, unsigned short addr);
 void msxwrite(int slot, unsigned short addr, unsigned char byte);
@@ -429,25 +431,25 @@ void inline spi_set(int addr, int rd, int mreq, int slt1)
  {
 	unsigned char byte;
 	int i, j;
-	struct timespec tv, tr;
 #ifdef RPMC_V5
 	int cs1, cs2, cs12;
+	pthread_mutex_lock(&mutex);
 	cs1 = (addr & 0xc000) == 0x4000 ? MSX_CS1 | MSX_CS12 : 0;
 	cs2 = (addr & 0xc000) == 0x8000 ? MSX_CS2 | MSX_CS12 : 0;
     GPIO_CLR = LE_C | 0xffff;
 	GPIO_SET = LE_D | LE_A | addr;
+	GPIO_SET = LE_D | LE_A | addr;
     GPIO_CLR = LE_A;
-    GPIO_SET = LE_C | MSX_IORQ | MSX_WR;
+	GPIO_SET = LE_C | MSX_IORQ | MSX_WR;
     GPIO_CLR = LE_D | (slot == 1 ? MSX_SLTSL1 : 0) | MSX_MREQ | MSX_RD | cs1 | cs2 | 0xff;
     byte = GPIO;
     byte = GPIO;
     byte = GPIO;
     byte = GPIO;
     byte = GPIO;
-    byte = GPIO;
-	//printf("\n");
 	GPIO_SET = LE_D | 0xff00;
     GPIO_CLR = LE_C;
+	pthread_mutex_unlock(&mutex);	
 #else	
 	spi_set(addr, 0, 0, slot);
 	GET_DATA(byte);
@@ -463,20 +465,28 @@ void inline spi_set(int addr, int rd, int mreq, int slt1)
  {
 	struct timespec tv, tr;
 #ifdef RPMC_V5
+	pthread_mutex_lock(&mutex);
     GPIO_CLR = LE_C | 0xffff;
 	GPIO_SET = LE_D | LE_A | addr;
+	GPIO_SET = LE_D | LE_A | addr;
     GPIO_CLR = LE_A;
+    GPIO_CLR = LE_A;
+    GPIO_CLR = 0xff;
     GPIO_CLR = 0xff;
     GPIO_SET = LE_C | MSX_IORQ | MSX_RD | MSX_CS1 | MSX_CS2 | MSX_CS12 | byte;
 	GPIO_CLR = LE_D | (slot == 1 ? MSX_SLTSL1 : 0) | MSX_MREQ | MSX_WR;
-	GPIO_CLR = LE_C;
     byte = GPIO;
     byte = GPIO;
     byte = GPIO;
     byte = GPIO;
     byte = GPIO;
     byte = GPIO;
-	GPIO_SET = LE_A | LE_C | LE_D | 0xffff;
+    byte = GPIO;
+    byte = GPIO;
+    byte = GPIO;
+	GPIO_SET = LE_D | 0xff00;
+    GPIO_CLR = LE_C;
+	pthread_mutex_unlock(&mutex);	
 #else	
 	tv.tv_sec = 0;
 	tv.tv_nsec = 20;
@@ -491,12 +501,12 @@ void inline spi_set(int addr, int rd, int mreq, int slt1)
  int msxreadio(unsigned short addr)
  {
 	unsigned char byte;
-	struct timespec tv, tr;
-	tv.tv_sec = 0;
-	tv.tv_nsec = 10;
+	pthread_mutex_lock(&mutex);
     GPIO_CLR = LE_C | 0xffff;
 	GPIO_SET = LE_D | LE_A | addr;
+	GPIO_SET = LE_D | LE_A | addr;
     GPIO_CLR = LE_A;
+	GPIO_SET = 0xff00;
     GPIO_SET = LE_C | MSX_MREQ | MSX_WR;
     GPIO_CLR = LE_D | MSX_IORQ | MSX_RD | 0xff;
     byte = GPIO;
@@ -507,35 +517,37 @@ void inline spi_set(int addr, int rd, int mreq, int slt1)
     byte = GPIO;
     byte = GPIO;
     byte = GPIO;
-	//printf("\n");
 	GPIO_SET = LE_D | 0xff00;
     GPIO_CLR = LE_C;
+	pthread_mutex_unlock(&mutex);	
 	return byte;	 
  }
  
  void msxwriteio(unsigned short addr, unsigned char byte)
  {
-	struct timespec tv, tr;
-	tv.tv_sec = 0;
-	tv.tv_nsec = 400;
-    GPIO_CLR = LE_C | 0xffff;
+	pthread_mutex_lock(&mutex);
+	GPIO_CLR = LE_C | 0xffff;
 	GPIO_SET = LE_D | LE_A | addr;
-    GPIO_CLR = LE_A;
-    GPIO_CLR = 0xff;
-    GPIO_SET = LE_C | MSX_MREQ | MSX_RD | MSX_CS1 | MSX_CS2 | MSX_CS12 | byte;
+	GPIO_SET = LE_D | LE_A | addr;
+	GPIO_CLR = LE_A;
+	GPIO_CLR = 0xff;
+	GPIO_SET = 0xff00;
+	GPIO_SET = LE_C | MSX_MREQ | MSX_RD | MSX_CS1 | MSX_CS2 | MSX_CS12 | byte;
 	GPIO_CLR = LE_D | MSX_IORQ | MSX_WR;
 	GPIO_CLR = LE_C;
-    byte = GPIO;
-    byte = GPIO;
-    byte = GPIO;
-    byte = GPIO;
-    byte = GPIO;
-    byte = GPIO;
-    byte = GPIO;
-    byte = GPIO;
-    byte = GPIO;	
-	GPIO_SET = LE_A | LE_C | LE_D | 0xffff;
-	 return;
+	byte = GPIO;
+	byte = GPIO;
+	byte = GPIO;
+	byte = GPIO;
+	byte = GPIO;
+	byte = GPIO;
+	byte = GPIO;
+	byte = GPIO;
+	byte = GPIO;	
+	GPIO_SET = LE_D | 0xff00;
+	GPIO_CLR = LE_C;
+	pthread_mutex_unlock(&mutex);		
+	return;
  }
  
 #if 0 
