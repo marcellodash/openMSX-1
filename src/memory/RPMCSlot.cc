@@ -116,7 +116,8 @@ byte RPMCSlot::peekMem(word address, EmuTime::param time)
 void RPMCSlot::writeMem(word address, byte value, EmuTime::param time)
 {
 	msxwrite(1, address, value);
-//	printf("M%04x:%02xw\n", address, value);
+	msxwrite(1, address, value);
+	printf("M%04x:%02xw\n", address, value);
 }
 
 byte RPMCSlot::readMem(word address, EmuTime::param time)
