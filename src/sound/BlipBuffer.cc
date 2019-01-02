@@ -1,6 +1,7 @@
 #include "BlipBuffer.hh"
 #include "cstd.hh"
 #include "likely.hh"
+#include "Math.hh"
 #include <algorithm>
 #include <cstring>
 #include <cassert>
@@ -23,7 +24,7 @@ static constexpr int BLIP_RES = 1 << BlipBuffer::BLIP_PHASE_BITS;
 struct Impulses {
 	int a[BLIP_RES][BLIP_IMPULSE_WIDTH];
 };
-static CONSTEXPR Impulses calcImpulses()
+static constexpr Impulses calcImpulses()
 {
 	constexpr int HALF_SIZE = BLIP_RES / 2 * (BLIP_IMPULSE_WIDTH - 1);
 	double fimpulse[HALF_SIZE + 2 * BLIP_RES] = {};
@@ -93,12 +94,12 @@ static CONSTEXPR Impulses calcImpulses()
 	}
 	return impulses;
 }
-static CONSTEXPR Impulses impulses = calcImpulses();
+static constexpr Impulses impulses = calcImpulses();
 
 
 BlipBuffer::BlipBuffer()
 {
-	if (0) {
+	if (false) {
 		for (int i = 0; i < BLIP_RES; ++i) {
 			std::cout << "\t{ " << impulses.a[i][0];
 			for (int j = 1; j < BLIP_IMPULSE_WIDTH; ++j) {

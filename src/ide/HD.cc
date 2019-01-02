@@ -13,9 +13,9 @@
 #include "HDCommand.hh"
 #include "Timer.hh"
 #include "serialize.hh"
-#include "memory.hh"
 #include "xrange.hh"
 #include <cassert>
+#include <memory>
 
 namespace openmsx {
 
@@ -59,11 +59,11 @@ HD::HD(const DeviceConfig& config)
 		file.truncate(size_t(config.getChildDataAsInt("size")) * 1024 * 1024);
 		filesize = file.getSize();
 	}
-	tigerTree = make_unique<TigerTree>(
+	tigerTree = std::make_unique<TigerTree>(
 		*this, filesize, filename.getResolved());
 
 	(*hdInUse)[id] = true;
-	hdCommand = make_unique<HDCommand>(
+	hdCommand = std::make_unique<HDCommand>(
 		motherBoard.getCommandController(),
 		motherBoard.getStateChangeDistributor(),
 		motherBoard.getScheduler(),
@@ -87,7 +87,7 @@ void HD::switchImage(const Filename& newFilename)
 	file = File(newFilename);
 	filename = newFilename;
 	filesize = file.getSize();
-	tigerTree = make_unique<TigerTree>(*this, filesize,
+	tigerTree = std::make_unique<TigerTree>(*this, filesize,
 			filename.getResolved());
 	motherBoard.getMSXCliComm().update(CliComm::MEDIA, getName(),
 	                                   filename.getResolved());
@@ -196,10 +196,10 @@ bool HD::diskChanged()
 	return false; // TODO not implemented
 }
 
-int HD::insertDisk(string_view newDisk)
+int HD::insertDisk(string_view newFilename)
 {
 	try {
-		switchImage(Filename(newDisk.str()));
+		switchImage(Filename(newFilename.str()));
 		return 0;
 	} catch (MSXException&) {
 		return -1;

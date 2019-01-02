@@ -22,8 +22,9 @@
 #include "serialize.hh"
 #include "serialize_stl.hh"
 #include "serialize_constr.hh"
-#include "memory.hh"
+#include "strCat.hh"
 #include <functional>
+#include <memory>
 #include <utility>
 
 using std::string;
@@ -36,11 +37,11 @@ class DiskCommand final : public Command // TODO RecordedCommand
 public:
 	DiskCommand(CommandController& commandController,
 	            DiskChanger& diskChanger);
-	void execute(array_ref<TclObject> tokens,
+	void execute(span<const TclObject> tokens,
 	             TclObject& result) override;
 	string help(const vector<string>& tokens) const override;
 	void tabCompletion(vector<string>& tokens) const override;
-	bool needRecord(array_ref<TclObject> tokens) const /*override*/;
+	bool needRecord(span<const TclObject> tokens) const /*override*/;
 private:
 	DiskChanger& diskChanger;
 };
@@ -58,7 +59,7 @@ DiskChanger::DiskChanger(MSXMotherBoard& board,
 	, driveName(std::move(driveName_))
 	, doubleSidedDrive(doubleSidedDrive_)
 {
-	init(board.getMachineID() + "::", createCmd);
+	init(strCat(board.getMachineID(), "::"), createCmd);
 }
 
 DiskChanger::DiskChanger(Reactor& reactor_, string driveName_)
@@ -86,7 +87,7 @@ void DiskChanger::init(const string& prefix, bool createCmd)
 void DiskChanger::createCommand()
 {
 	if (diskCommand) return;
-	diskCommand = make_unique<DiskCommand>(controller, *this);
+	diskCommand = std::make_unique<DiskCommand>(controller, *this);
 }
 
 DiskChanger::~DiskChanger()
@@ -123,7 +124,7 @@ const std::string& DiskChanger::getContainerName() const
 	return getDriveName();
 }
 
-void DiskChanger::sendChangeDiskEvent(array_ref<string> args)
+void DiskChanger::sendChangeDiskEvent(span<string> args)
 {
 	// note: might throw MSXException
 	if (stateChangeDistributor) {
@@ -167,7 +168,7 @@ int DiskChanger::insertDisk(string_view filename)
 	}
 }
 
-void DiskChanger::insertDisk(array_ref<TclObject> args)
+void DiskChanger::insertDisk(span<const TclObject> args)
 {
 	const string& diskImage = FileOperations::getConventionalPath(args[1].getString());
 	auto& diskFactory = reactor.getDiskFactory();
@@ -183,7 +184,7 @@ void DiskChanger::insertDisk(array_ref<TclObject> args)
 
 void DiskChanger::ejectDisk()
 {
-	changeDisk(make_unique<DummyDisk>());
+	changeDisk(std::make_unique<DummyDisk>());
 }
 
 void DiskChanger::changeDisk(std::unique_ptr<Disk> newDisk)
@@ -205,7 +206,7 @@ DiskCommand::DiskCommand(CommandController& commandController_,
 {
 }
 
-void DiskCommand::execute(array_ref<TclObject> tokens, TclObject& result)
+void DiskCommand::execute(span<const TclObject> tokens, TclObject& result)
 {
 	if (tokens.size() == 1) {
 		result.addListElement(diskChanger.getDriveName() + ':');
@@ -270,7 +271,7 @@ void DiskCommand::execute(array_ref<TclObject> tokens, TclObject& result)
 			}
 			diskChanger.sendChangeDiskEvent(args);
 		} catch (FileException& e) {
-			throw CommandException(e.getMessage());
+			throw CommandException(std::move(e).getMessage());
 		}
 	}
 }
@@ -298,7 +299,7 @@ void DiskCommand::tabCompletion(vector<string>& tokens) const
 	}
 }
 
-bool DiskCommand::needRecord(array_ref<TclObject> tokens) const
+bool DiskCommand::needRecord(span<const TclObject> tokens) const
 {
 	return tokens.size() > 1;
 }

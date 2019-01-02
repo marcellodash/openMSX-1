@@ -9,10 +9,10 @@
 #include "CliComm.hh"
 #include "endian.hh"
 #include "serialize.hh"
-#include "memory.hh"
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
+#include <memory>
 
 using std::string;
 using std::vector;
@@ -25,7 +25,7 @@ public:
 	CDXCommand(CommandController& commandController,
 	           StateChangeDistributor& stateChangeDistributor,
 	           Scheduler& scheduler, IDECDROM& cd);
-	void execute(array_ref<TclObject> tokens,
+	void execute(span<const TclObject> tokens,
 		TclObject& result, EmuTime::param time) override;
 	string help(const vector<string>& tokens) const override;
 	void tabCompletion(vector<string>& tokens) const override;
@@ -49,7 +49,7 @@ IDECDROM::IDECDROM(const DeviceConfig& config)
 	}
 	name[2] = char('a' + id);
 	(*cdInUse)[id] = true;
-	cdxCommand = make_unique<CDXCommand>(
+	cdxCommand = std::make_unique<CDXCommand>(
 		getMotherBoard().getCommandController(),
 		getMotherBoard().getStateChangeDistributor(),
 		getMotherBoard().getScheduler(), *this);
@@ -335,7 +335,7 @@ CDXCommand::CDXCommand(CommandController& commandController_,
 {
 }
 
-void CDXCommand::execute(array_ref<TclObject> tokens, TclObject& result,
+void CDXCommand::execute(span<const TclObject> tokens, TclObject& result,
                          EmuTime::param /*time*/)
 {
 	if (tokens.size() == 1) {

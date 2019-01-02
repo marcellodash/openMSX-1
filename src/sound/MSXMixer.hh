@@ -132,7 +132,7 @@ private:
 	void updateMasterVolume();
 	void reschedule();
 	void reschedule2();
-	void generate(int16_t* buffer, EmuTime::param time, unsigned samples);
+	void generate(int16_t* output, EmuTime::param time, unsigned samples);
 
 	// Schedulable
 	void executeUntil(EmuTime::param time) override;
@@ -163,7 +163,7 @@ private:
 
 	struct SoundDeviceInfoTopic final : InfoTopic {
 		explicit SoundDeviceInfoTopic(InfoCommand& machineInfoCommand);
-		void execute(array_ref<TclObject> tokens,
+		void execute(span<const TclObject> tokens,
 			     TclObject& result) const override;
 		std::string help(const std::vector<std::string>& tokens) const override;
 		void tabCompletion(std::vector<std::string>& tokens) const override;

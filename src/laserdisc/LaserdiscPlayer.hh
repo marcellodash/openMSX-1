@@ -91,7 +91,7 @@ private:
 	void stop(EmuTime::param time);
 	void eject(EmuTime::param time);
 	void seekFrame(size_t frame, EmuTime::param time);
-	void stepFrame(bool);
+	void stepFrame(bool forwards);
 	void seekChapter(int chapter, EmuTime::param time);
 
 	// Control from MSX
@@ -107,7 +107,7 @@ private:
 	void createRenderer();
 
 	// SoundDevice
-	void generateChannels(int** bufs, unsigned num) override;
+	void generateChannels(int** buffers, unsigned num) override;
 	bool updateBuffer(unsigned length, int* buffer,
 	                  EmuTime::param time) override;
 
@@ -155,7 +155,7 @@ private:
 		Command(CommandController& commandController,
 		        StateChangeDistributor& stateChangeDistributor,
 		        Scheduler& scheduler);
-		void execute(array_ref<TclObject> tokens, TclObject& result,
+		void execute(span<const TclObject> tokens, TclObject& result,
 			     EmuTime::param time) override;
 		std::string help(const std::vector<std::string>& tokens) const override;
 		void tabCompletion(std::vector<std::string>& tokens) const override;

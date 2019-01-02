@@ -12,10 +12,11 @@
 #include "CliComm.hh"
 #include "FileOperations.hh"
 #include "TclObject.hh"
-#include "memory.hh"
 #include "outer.hh"
+#include "view.hh"
 #include "vla.hh"
 #include <cassert>
+#include <memory>
 
 using std::string;
 using std::vector;
@@ -81,7 +82,7 @@ void AviRecorder::start(bool recordAudio, bool recordVideo, bool recordMono,
 		prevTime = EmuTime::infinity;
 
 		try {
-			aviWriter = make_unique<AviWriter>(
+			aviWriter = std::make_unique<AviWriter>(
 				filename, frameWidth, frameHeight, bpp,
 				(recordAudio && stereo) ? 2 : 1, sampleRate);
 		} catch (MSXException& e) {
@@ -90,7 +91,7 @@ void AviRecorder::start(bool recordAudio, bool recordVideo, bool recordMono,
 		}
 	} else {
 		assert(recordAudio);
-		wavWriter = make_unique<Wav16Writer>(
+		wavWriter = std::make_unique<Wav16Writer>(
 			filename, stereo ? 2 : 1, sampleRate);
 	}
 	// only set recorders when all errors are checked for
@@ -189,7 +190,7 @@ unsigned AviRecorder::getFrameHeight() const {
 	return frameHeight;
 }
 
-void AviRecorder::processStart(array_ref<TclObject> tokens, TclObject& result)
+void AviRecorder::processStart(span<const TclObject> tokens, TclObject& result)
 {
 	string filename;
 	string prefix = "openmsx";
@@ -205,10 +206,9 @@ void AviRecorder::processStart(array_ref<TclObject> tokens, TclObject& result)
 		string_view token = tokens[i].getString();
 		if (token.starts_with('-')) {
 			if (token == "--") {
-				for (auto it = std::begin(tokens) + i + 1;
-				     it != std::end(tokens); ++it) {
-					arguments.push_back(it->getString().str());
-				}
+				append(arguments, view::transform(
+					view::drop(tokens, i + 1),
+					[](auto& t) { return t.getString().str(); }));
 				break;
 			}
 			if (token == "-prefix") {
@@ -271,7 +271,7 @@ void AviRecorder::processStart(array_ref<TclObject> tokens, TclObject& result)
 	}
 }
 
-void AviRecorder::processStop(array_ref<TclObject> tokens)
+void AviRecorder::processStop(span<const TclObject> tokens)
 {
 	if (tokens.size() != 2) {
 		throw SyntaxError();
@@ -279,17 +279,17 @@ void AviRecorder::processStop(array_ref<TclObject> tokens)
 	stop();
 }
 
-void AviRecorder::processToggle(array_ref<TclObject> tokens, TclObject& result)
+void AviRecorder::processToggle(span<const TclObject> tokens, TclObject& result)
 {
 	if (aviWriter || wavWriter) {
 		// drop extra tokens
-		processStop(make_array_ref(tokens.data(), 2));
+		processStop(tokens.first<2>());
 	} else {
 		processStart(tokens, result);
 	}
 }
 
-void AviRecorder::status(array_ref<TclObject> tokens, TclObject& result) const
+void AviRecorder::status(span<const TclObject> tokens, TclObject& result) const
 {
 	if (tokens.size() != 2) {
 		throw SyntaxError();
@@ -310,7 +310,7 @@ AviRecorder::Cmd::Cmd(CommandController& commandController_)
 {
 }
 
-void AviRecorder::Cmd::execute(array_ref<TclObject> tokens, TclObject& result)
+void AviRecorder::Cmd::execute(span<const TclObject> tokens, TclObject& result)
 {
 	if (tokens.size() < 2) {
 		throw CommandException("Missing argument");

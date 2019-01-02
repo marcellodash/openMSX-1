@@ -3,8 +3,8 @@
 #include "CliComm.hh"
 #include "CommandException.hh"
 #include "StringSetting.hh"
-#include "memory.hh"
 #include <iostream>
+#include <memory>
 
 using std::string;
 
@@ -16,7 +16,7 @@ TclCallback::TclCallback(
 		string_view description,
 		bool useCliComm_,
 		bool save)
-	: callbackSetting2(make_unique<StringSetting>(
+	: callbackSetting2(std::make_unique<StringSetting>(
 		controller, name, description, string_view{},
 		save ? Setting::SAVE : Setting::DONT_SAVE))
 	, callbackSetting(*callbackSetting2)
@@ -106,7 +106,7 @@ TclObject TclCallback::executeCommon(TclObject& command)
 			getSetting().getCommandController().getCliComm().printWarning(
 				message);
 		} else {
-			std::cerr << message << std::endl;
+			std::cerr << message << '\n';
 		}
 		return TclObject();
 	}

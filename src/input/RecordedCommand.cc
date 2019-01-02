@@ -6,7 +6,9 @@
 #include "ScopedAssign.hh"
 #include "serialize.hh"
 #include "serialize_stl.hh"
+#include "stl.hh"
 #include "unreachable.hh"
+#include "view.hh"
 
 using std::vector;
 using std::string;
@@ -30,7 +32,7 @@ RecordedCommand::~RecordedCommand()
 	stateChangeDistributor.unregisterListener(*this);
 }
 
-void RecordedCommand::execute(array_ref<TclObject> tokens, TclObject& result)
+void RecordedCommand::execute(span<const TclObject> tokens, TclObject& result)
 {
 	auto time = scheduler.getCurrentTime();
 	if (needRecord(tokens)) {
@@ -42,7 +44,7 @@ void RecordedCommand::execute(array_ref<TclObject> tokens, TclObject& result)
 	}
 }
 
-bool RecordedCommand::needRecord(array_ref<TclObject> /*tokens*/) const
+bool RecordedCommand::needRecord(span<const TclObject> /*tokens*/) const
 {
 	return true;
 }
@@ -86,17 +88,15 @@ void RecordedCommand::stopReplay(EmuTime::param /*time*/)
 
 // class MSXCommandEvent
 
-MSXCommandEvent::MSXCommandEvent(array_ref<string> tokens_, EmuTime::param time_)
+MSXCommandEvent::MSXCommandEvent(span<string> tokens_, EmuTime::param time_)
 	: StateChange(time_)
 {
-	for (auto& t : tokens_) {
-		tokens.emplace_back(t);
-	}
+	tokens = to_vector<TclObject>(tokens_);
 }
 
-MSXCommandEvent::MSXCommandEvent(array_ref<TclObject> tokens_, EmuTime::param time_)
+MSXCommandEvent::MSXCommandEvent(span<const TclObject> tokens_, EmuTime::param time_)
 	: StateChange(time_)
-	, tokens(tokens_.begin(), tokens_.end())
+	, tokens(to_vector(tokens_))
 {
 }
 
@@ -108,16 +108,14 @@ void MSXCommandEvent::serialize(Archive& ar, unsigned /*version*/)
 	// serialize vector<TclObject> as vector<string>
 	vector<string> str;
 	if (!ar.isLoader()) {
-		for (auto& t : tokens) {
-			str.push_back(t.getString().str());
-		}
+		str = to_vector(view::transform(
+			tokens, [](auto& t) { return t.getString().str(); }));
 	}
 	ar.serialize("tokens", str);
 	if (ar.isLoader()) {
 		assert(tokens.empty());
-		for (auto& s : str) {
-			tokens.emplace_back(s);
-		}
+		tokens = to_vector(view::transform(
+			str, [](auto& s) { return TclObject(s); }));
 	}
 }
 REGISTER_POLYMORPHIC_CLASS(StateChange, MSXCommandEvent, "MSXCommandEvent");

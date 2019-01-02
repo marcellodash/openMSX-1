@@ -11,6 +11,7 @@
 #include "InputEvents.hh"
 #include "StateChange.hh"
 #include "Display.hh"
+#include "OutputSurface.hh"
 #include "CommandController.hh"
 #include "CommandException.hh"
 #include "Clock.hh"
@@ -83,7 +84,7 @@ Touchpad::Touchpad(MSXEventDistributor& eventDistributor_,
 		parseTransformMatrix(interp, transformSetting.getValue());
 	} catch (CommandException& e) {
 		// should only happen when settings.xml was manually edited
-		std::cerr << e.getMessage() << std::endl;
+		std::cerr << e.getMessage() << '\n';
 		// fill in safe default values
 		m[0][0] = 256.0f; m[1][0] =   0.0f; m[2][0] = 0.0f;
 		m[0][1] =   0.0f; m[1][1] = 256.0f; m[2][1] = 0.0f;
@@ -194,9 +195,8 @@ void Touchpad::write(byte value, EmuTime::param time)
 
 ivec2 Touchpad::transformCoords(ivec2 xy)
 {
-	auto size = display.getOutputScreenResolution();
-	if (size[0] > 0) {
-		vec2 uv = vec2(xy) / vec2(size);
+	if (auto* output = display.getOutputSurface()) {
+		vec2 uv = vec2(xy) / vec2(output->getOutputSize());
 		xy = ivec2(m * vec3(uv, 1.0f));
 	}
 	return clamp(xy, 0, 255);

@@ -72,7 +72,7 @@ public:
 	static const int TICKS_PER_LINE = 1368;
 
 	explicit VDP(const DeviceConfig& config);
-	~VDP();
+	~VDP() override;
 
 	void powerUp(EmuTime::param time) override;
 	void reset(EmuTime::param time) override;
@@ -839,7 +839,7 @@ private:
 
 	class Info : public InfoTopic {
 	public:
-		void execute(array_ref<TclObject> tokens,
+		void execute(span<const TclObject> tokens,
 		             TclObject& result) const override;
 		std::string help(const std::vector<std::string>& tokens) const override;
 		virtual int calc(const EmuTime& time) const = 0;

@@ -19,7 +19,7 @@ public:
 
 	byte readMem(word address, EmuTime::param time) override;
 	byte peekMem(word address, EmuTime::param time) const override;
-	const byte* getReadCacheLine(word start) const override;
+	const byte* getReadCacheLine(word address) const override;
 
 	template<typename Archive>
 	void serialize(Archive& ar, unsigned version);
@@ -39,7 +39,7 @@ protected:
 	 */
 	RomBlocks(const DeviceConfig& config, Rom&& rom,
 	          unsigned debugBankSizeShift = 0);
-	~RomBlocks();
+	~RomBlocks() override;
 
 	/** Select 'unmapped' memory for this region. Reads from this
 	  * region will return 0xff.

@@ -9,7 +9,7 @@
 #include "WatchPoint.hh"
 #include "openmsx.hh"
 #include "likely.hh"
-#include <algorithm>
+#include "ranges.hh"
 #include <bitset>
 #include <vector>
 #include <memory>
@@ -87,9 +87,9 @@ public:
 	 * get called.
 	 */
 	void registerMemDevice(MSXDevice& device,
-	                       int primSl, int secSL, int base, int size);
+	                       int ps, int ss, int base, int size);
 	void unregisterMemDevice(MSXDevice& device,
-	                         int primSl, int secSL, int base, int size);
+	                         int ps, int ss, int base, int size);
 
 	/** (Un)register global writes.
 	  * @see MSXDevice::globalWrite()
@@ -209,7 +209,7 @@ public:
 	void unsetExpanded(int ps);
 	void testUnsetExpanded(int ps, std::vector<MSXDevice*> allowed) const;
 	inline bool isExpanded(int ps) const { return expanded[ps] != 0; }
-	void changeExpanded(bool isExpanded);
+	void changeExpanded(bool newExpanded);
 
 	DummyDevice& getDummyDevice() { return *dummyDevice; }
 
@@ -247,8 +247,7 @@ public:
 	}
 	static bool checkBreakPoints(unsigned pc, MSXMotherBoard& motherBoard)
 	{
-		auto range = equal_range(begin(breakPoints), end(breakPoints),
-		                         pc, CompareBreakpoints());
+		auto range = ranges::equal_range(breakPoints, pc, CompareBreakpoints());
 		if (conditions.empty() && (range.first == range.second)) {
 			return false;
 		}
@@ -319,41 +318,41 @@ private:
 
 	struct SlotInfo final : InfoTopic {
 		explicit SlotInfo(InfoCommand& machineInfoCommand);
-		void execute(array_ref<TclObject> tokens,
+		void execute(span<const TclObject> tokens,
 			     TclObject& result) const override;
 		std::string help(const std::vector<std::string>& tokens) const override;
 	} slotInfo;
 
 	struct SubSlottedInfo final : InfoTopic {
 		explicit SubSlottedInfo(InfoCommand& machineInfoCommand);
-		void execute(array_ref<TclObject> tokens,
+		void execute(span<const TclObject> tokens,
 			     TclObject& result) const override;
 		std::string help(const std::vector<std::string>& tokens) const override;
 	} subSlottedInfo;
 
 	struct ExternalSlotInfo final : InfoTopic {
 		explicit ExternalSlotInfo(InfoCommand& machineInfoCommand);
-		void execute(array_ref<TclObject> tokens,
+		void execute(span<const TclObject> tokens,
 			     TclObject& result) const override;
 		std::string help(const std::vector<std::string>& tokens) const override;
 	} externalSlotInfo;
 
 	struct IOInfo : InfoTopic {
 		IOInfo(InfoCommand& machineInfoCommand, const char* name);
-		void helper(array_ref<TclObject> tokens,
+		void helper(span<const TclObject> tokens,
 		            TclObject& result, MSXDevice** devices) const;
 		std::string help(const std::vector<std::string>& tokens) const override;
 	};
 	struct IInfo final : IOInfo {
 		explicit IInfo(InfoCommand& machineInfoCommand)
 			: IOInfo(machineInfoCommand, "input_port") {}
-		void execute(array_ref<TclObject> tokens,
+		void execute(span<const TclObject> tokens,
 		             TclObject& result) const override;
 	} inputPortInfo;
 	struct OInfo final : IOInfo {
 		explicit OInfo(InfoCommand& machineInfoCommand)
 			: IOInfo(machineInfoCommand, "output_port") {}
-		void execute(array_ref<TclObject> tokens,
+		void execute(span<const TclObject> tokens,
 		             TclObject& result) const override;
 	} outputPortInfo;
 

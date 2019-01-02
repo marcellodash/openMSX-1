@@ -613,9 +613,7 @@
     <ClCompile Include="$(OpenMSXSrcDir)\utils\DeltaBlock.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\Tiger.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\TigerTree.cc" />
-    <ClCompile Include="$(OpenMSXSrcDir)\utils\AltSpaceSuppressor.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\Base64.cc" />
-    <ClCompile Include="$(OpenMSXSrcDir)\utils\CircularBuffer.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\CRC16.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\Date.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\DivModBySame.cc" />
@@ -624,7 +622,6 @@
     <ClCompile Include="$(OpenMSXSrcDir)\utils\Math.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\SerializeBuffer.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\MemoryOps.cc" />
-    <ClCompile Include="$(OpenMSXSrcDir)\utils\win32-windowhandle.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\sha1.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\StringOp.cc" />
     <ClCompile Include="$(OpenMSXSrcDir)\utils\string_view.cc" />
@@ -1175,7 +1172,6 @@
     <None Include="$(OpenMSXSrcDir)\utils\DeltaBlock.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\Tiger.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\TigerTree.hh" />
-    <None Include="$(OpenMSXSrcDir)\utils\AltSpaceSuppressor.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\Base64.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\checked_cast.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\CircularBuffer.hh" />
@@ -1209,9 +1205,6 @@
     <None Include="$(OpenMSXSrcDir)\utils\strCat.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\rapidsax.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\Subject.hh" />
-    <None Include="$(OpenMSXSrcDir)\utils\tuple.hh" />
-    <None Include="$(OpenMSXSrcDir)\utils\type_traits.hh" />
-    <None Include="$(OpenMSXSrcDir)\utils\TypeInfo.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\uint128.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\unistdp.hh" />
     <None Include="$(OpenMSXSrcDir)\utils\unreachable.hh" />

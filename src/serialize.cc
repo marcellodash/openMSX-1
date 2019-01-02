@@ -10,6 +10,7 @@
 #include "FileOperations.hh"
 #include "Version.hh"
 #include "Date.hh"
+#include "stl.hh"
 #include "cstdiop.hh" // for dup()
 #include <cstring>
 #include <limits>
@@ -29,11 +30,6 @@ template class ArchiveBase<XmlOutputArchive>;
 
 ////
 
-OutputArchiveBase2::OutputArchiveBase2()
-	: lastId(0)
-{
-}
-
 unsigned OutputArchiveBase2::generateID1(const void* p)
 {
 	#ifdef linux
@@ -41,7 +37,7 @@ unsigned OutputArchiveBase2::generateID1(const void* p)
 	       !addressOnStack(p));
 	#endif
 	++lastId;
-	assert(polyIdMap.find(p) == end(polyIdMap));
+	assert(!polyIdMap.count(p)); // c++20 contains()
 	polyIdMap[p] = lastId;
 	return lastId;
 }
@@ -54,21 +50,21 @@ unsigned OutputArchiveBase2::generateID2(
 	#endif
 	++lastId;
 	auto key = std::make_pair(p, std::type_index(typeInfo));
-	assert(idMap.find(key) == end(idMap));
+	assert(!idMap.count(key)); // c++20 contains()
 	idMap[key] = lastId;
 	return lastId;
 }
 
 unsigned OutputArchiveBase2::getID1(const void* p)
 {
-	auto it = polyIdMap.find(p);
-	return it != end(polyIdMap) ? it->second : 0;
+	auto v = lookup(polyIdMap, p);
+	return v ? *v : 0;
 }
 unsigned OutputArchiveBase2::getID2(
 	const void* p, const std::type_info& typeInfo)
 {
-	auto it = idMap.find({p, std::type_index(typeInfo)});
-	return it != end(idMap) ? it->second : 0;
+	auto v = lookup(idMap, std::make_pair(p, std::type_index(typeInfo)));
+	return v ? *v : 0;
 }
 
 
@@ -114,13 +110,13 @@ template class OutputArchiveBase<XmlOutputArchive>;
 
 void* InputArchiveBase2::getPointer(unsigned id)
 {
-	auto it = idMap.find(id);
-	return it != end(idMap) ? it->second : nullptr;
+	auto v = lookup(idMap, id);
+	return v ? *v : nullptr;
 }
 
 void InputArchiveBase2::addPointer(unsigned id, const void* p)
 {
-	assert(idMap.find(id) == end(idMap));
+	assert(!idMap.count(id)); // c++20 contains()
 	idMap[id] = const_cast<void*>(p);
 }
 
@@ -213,12 +209,12 @@ string_view MemInputArchive::loadStr()
 // semi-arbitrary. I only made it >= 52 so that the (incompressible) RP5C01
 // registers won't be compressed.
 static const size_t SMALL_SIZE = 64;
-void MemOutputArchive::serialize_blob(const char*, const void* data, size_t len,
-                                      bool diff)
+void MemOutputArchive::serialize_blob(const char* /*tag*/, const void* data,
+                                      size_t len, bool diff)
 {
 	// Delta-compress in-memory blobs, see DeltaBlock.hh for more details.
 	if (len > SMALL_SIZE) {
-		unsigned deltaBlockIdx = unsigned(deltaBlocks.size());
+		auto deltaBlockIdx = unsigned(deltaBlocks.size());
 		save(deltaBlockIdx); // see comment below in MemInputArchive
 		deltaBlocks.push_back(diff
 			? lastDeltaBlocks.createNew(
@@ -232,7 +228,8 @@ void MemOutputArchive::serialize_blob(const char*, const void* data, size_t len,
 
 }
 
-void MemInputArchive::serialize_blob(const char*, void* data, size_t len, bool /*diff*/)
+void MemInputArchive::serialize_blob(const char* /*tag*/, void* data,
+                                     size_t len, bool /*diff*/)
 {
 	if (len > SMALL_SIZE) {
 		// Usually blobs are saved in the same order as they are loaded
@@ -516,7 +513,7 @@ void XmlInputArchive::attribute(const char* name, string& t)
 	try {
 		t = elems.back().first->getAttribute(name);
 	} catch (ConfigException& e) {
-		throw XMLException(e.getMessage());
+		throw XMLException(std::move(e).getMessage());
 	}
 }
 void XmlInputArchive::attribute(const char* name, int& i)

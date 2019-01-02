@@ -7,10 +7,10 @@
 #include "MSXException.hh"
 #include "CliComm.hh"
 #include "unreachable.hh"
-#include "memory.hh"
 #include "outer.hh"
 #include "xrange.hh"
 #include <cassert>
+#include <memory>
 
 using std::string;
 using std::vector;
@@ -18,11 +18,6 @@ using std::vector;
 namespace openmsx {
 
 // CartridgeSlotManager::Slot
-CartridgeSlotManager::Slot::Slot()
-	: config(nullptr), useCount(0), ps(0), ss(0)
-{
-}
-
 CartridgeSlotManager::Slot::~Slot()
 {
 	assert(!config);
@@ -98,9 +93,9 @@ void CartridgeSlotManager::createExternalSlot(int ps, int ss)
 			extName[3] += slot;
 			motherBoard.getMSXCliComm().update(
 				CliComm::HARDWARE, slotName, "add");
-			slots[slot].cartCommand = make_unique<CartCmd>(
+			slots[slot].cartCommand = std::make_unique<CartCmd>(
 				*this, motherBoard, slotName);
-			slots[slot].extCommand = make_unique<ExtCmd>(
+			slots[slot].extCommand = std::make_unique<ExtCmd>(
 				motherBoard, extName);
 			return;
 		}
@@ -303,7 +298,7 @@ const HardwareConfig* CartridgeSlotManager::CartCmd::getExtensionConfig(
 }
 
 void CartridgeSlotManager::CartCmd::execute(
-	array_ref<TclObject> tokens, TclObject& result, EmuTime::param /*time*/)
+	span<const TclObject> tokens, TclObject& result, EmuTime::param /*time*/)
 {
 	string_view cartname = tokens[0].getString();
 
@@ -354,8 +349,7 @@ void CartridgeSlotManager::CartCmd::execute(
 				throw CommandException("Missing argument to insert subcommand");
 			}
 		}
-		array_ref<TclObject> options(std::begin(tokens) + extensionNameToken + 1,
-		                             std::end(tokens));
+                auto options = tokens.subspan(extensionNameToken + 1);
 		try {
 			string_view romname = tokens[extensionNameToken].getString();
 			auto extension = HardwareConfig::createRomConfig(
@@ -370,7 +364,7 @@ void CartridgeSlotManager::CartCmd::execute(
 				"ROM", std::move(extension)));
 			cliComm.update(CliComm::MEDIA, cartname, romname);
 		} catch (MSXException& e) {
-			throw CommandException(e.getMessage());
+			throw CommandException(std::move(e).getMessage());
 		}
 	}
 }
@@ -396,7 +390,7 @@ void CartridgeSlotManager::CartCmd::tabCompletion(vector<string>& tokens) const
 	completeFileName(tokens, userFileContext(), extra);
 }
 
-bool CartridgeSlotManager::CartCmd::needRecord(array_ref<TclObject> tokens) const
+bool CartridgeSlotManager::CartCmd::needRecord(span<const TclObject> tokens) const
 {
 	return tokens.size() > 1;
 }
@@ -411,7 +405,7 @@ CartridgeSlotManager::CartridgeSlotInfo::CartridgeSlotInfo(
 }
 
 void CartridgeSlotManager::CartridgeSlotInfo::execute(
-	array_ref<TclObject> tokens, TclObject& result) const
+	span<const TclObject> tokens, TclObject& result) const
 {
 	auto& manager = OUTER(CartridgeSlotManager, extSlotInfo);
 	switch (tokens.size()) {

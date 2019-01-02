@@ -8,13 +8,14 @@
 #include "HardwareConfig.hh"
 #include "MSXException.hh"
 #include "Math.hh"
-#include "serialize.hh"
-#include "memory.hh"
-#include "xrange.hh"
 #include "countof.hh"
-#include <numeric>
+#include "ranges.hh"
+#include "serialize.hh"
+#include "view.hh"
+#include "xrange.hh"
 #include <cstring>
 #include <cassert>
+#include <memory>
 
 using std::string;
 using std::vector;
@@ -26,7 +27,7 @@ AmdFlash::AmdFlash(const Rom& rom, vector<SectorInfo> sectorInfo_,
                    const DeviceConfig& config, bool load)
 	: motherBoard(config.getMotherBoard())
 	, sectorInfo(std::move(sectorInfo_))
-	, size(std::accumulate(begin(sectorInfo), end(sectorInfo), 0, [](int t, SectorInfo i) { return t + i.size;}))
+	, size(sum(view::transform(sectorInfo, [](auto& i) { return i.size; })))
 	, ID(ID_)
 	, use12bitAddressing(use12bitAddressing_)
 {
@@ -38,7 +39,7 @@ AmdFlash::AmdFlash(const string& name, vector<SectorInfo> sectorInfo_,
                    const DeviceConfig& config)
 	: motherBoard(config.getMotherBoard())
 	, sectorInfo(std::move(sectorInfo_))
-	, size(std::accumulate(begin(sectorInfo), end(sectorInfo), 0, [](int t, SectorInfo i) { return t + i.size;}))
+	, size(sum(view::transform(sectorInfo, [](auto& i) { return i.size; })))
 	, ID(ID_)
 	, use12bitAddressing(use12bitAddressing_)
 {
@@ -47,10 +48,8 @@ AmdFlash::AmdFlash(const string& name, vector<SectorInfo> sectorInfo_,
 
 static bool sramEmpty(const SRAM& ram)
 {
-	for (auto i : xrange(ram.getSize())) {
-		if (ram[i] != 0xFF) return false;
-	}
-	return true;
+	return ranges::all_of(xrange(ram.getSize()),
+	                      [&](auto i) { return ram[i] == 0xFF; });
 }
 
 void AmdFlash::init(const string& name, const DeviceConfig& config, bool load, const Rom* rom)
@@ -76,7 +75,7 @@ void AmdFlash::init(const string& name, const DeviceConfig& config, bool load, c
 	bool loaded = false;
 	if (writableSize) {
 		if (load) {
-			ram = make_unique<SRAM>(
+			ram = std::make_unique<SRAM>(
 				name, "flash rom",
 				writableSize, config, nullptr, &loaded);
 		} else {
@@ -84,9 +83,9 @@ void AmdFlash::init(const string& name, const DeviceConfig& config, bool load, c
 			// writes are never visible to the MSX (but the flash
 			// is not made write-protected). In this case it doesn't
 			// make sense to load/save the SRAM file.
-			ram = make_unique<SRAM>(
+			ram = std::make_unique<SRAM>(
 				name, "flash rom",
-				writableSize, config, SRAM::DONT_LOAD);
+				writableSize, config, SRAM::DontLoadTag{});
 		}
 	}
 	if (readOnlySize) {
@@ -122,7 +121,7 @@ void AmdFlash::init(const string& name, const DeviceConfig& config, bool load, c
 		// ships. This ROM is optional, if it's not found, then the
 		// initial flash content is all 0xFF.
 		try {
-			rom_ = make_unique<Rom>(
+			rom_ = std::make_unique<Rom>(
 				string{}, string{}, // dummy name and description
 				config);
 			rom = rom_.get();

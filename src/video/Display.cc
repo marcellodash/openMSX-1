@@ -24,9 +24,10 @@
 #include "build-info.hh"
 #include "checked_cast.hh"
 #include "outer.hh"
+#include "ranges.hh"
 #include "stl.hh"
 #include "unreachable.hh"
-#include <algorithm>
+#include "view.hh"
 #include <cassert>
 
 using std::string;
@@ -44,7 +45,6 @@ Display::Display(Reactor& reactor_)
 	, commandConsole(reactor.getGlobalCommandController(),
 	                 reactor.getEventDistributor(), *this)
 	, currentRenderer(RenderSettings::UNINITIALIZED)
-	, resolution(-1, -1)
 	, switchInProgress(false)
 {
 	frameDurationSum = 0;
@@ -112,6 +112,11 @@ VideoSystem& Display::getVideoSystem()
 {
 	assert(videoSystem);
 	return *videoSystem;
+}
+
+OutputSurface* Display::getOutputSurface()
+{
+	return videoSystem ? videoSystem->getOutputSurface() : nullptr;
 }
 
 void Display::resetVideoSystem()
@@ -370,8 +375,7 @@ void Display::repaintDelayed(uint64_t delta)
 void Display::addLayer(Layer& layer)
 {
 	int z = layer.getZ();
-	auto it = find_if(begin(layers), end(layers),
-		[&](Layer* l) { return l->getZ() > z; });
+	auto it = ranges::find_if(layers, [&](Layer* l) { return l->getZ() > z; });
 	layers.insert(it, &layer);
 	layer.setDisplay(*this);
 }
@@ -397,7 +401,7 @@ Display::ScreenShotCmd::ScreenShotCmd(CommandController& commandController_)
 {
 }
 
-void Display::ScreenShotCmd::execute(array_ref<TclObject> tokens, TclObject& result)
+void Display::ScreenShotCmd::execute(span<const TclObject> tokens, TclObject& result)
 {
 	auto& display = OUTER(Display, screenShotCmd);
 	bool rawShot = false;
@@ -409,8 +413,7 @@ void Display::ScreenShotCmd::execute(array_ref<TclObject> tokens, TclObject& res
 		string_view tok = tokens[i].getString();
 		if (StringOp::startsWith(tok, '-')) {
 			if (tok == "--") {
-				arguments.insert(end(arguments),
-					std::begin(tokens) + i + 1, std::end(tokens));
+				append(arguments, view::drop(tokens, i + 1));
 				break;
 			}
 			if (tok == "-prefix") {
@@ -516,7 +519,7 @@ Display::FpsInfoTopic::FpsInfoTopic(InfoCommand& openMSXInfoCommand)
 {
 }
 
-void Display::FpsInfoTopic::execute(array_ref<TclObject> /*tokens*/,
+void Display::FpsInfoTopic::execute(span<const TclObject> /*tokens*/,
                            TclObject& result) const
 {
 	auto& display = OUTER(Display, fpsInfo);

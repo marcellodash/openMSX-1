@@ -64,11 +64,8 @@ WavWriter::~WavWriter()
 
 void WavWriter::flush()
 {
-	// TODO For now (before C++11) this needs separate definition and
-	//      initialization. See comments in Endian::EndianT for details.
-	Endian::L32 totalSize, wavSize;
-	totalSize = (bytes + 44 - 8 + 1) & ~1; // round up to even number
-	wavSize   = bytes;
+	Endian::L32 totalSize = (bytes + 44 - 8 + 1) & ~1; // round up to even number
+	Endian::L32 wavSize   = bytes;
 
 	file.seek(4);
 	file.write(&totalSize, 4);
@@ -95,11 +92,7 @@ void Wav16Writer::write(const int16_t* buffer, unsigned samples)
 		// To side-step this issue we simply use a std::vector, this
 		// code is anyway not performance critical.
 		//VLA(Endian::L16, buf, samples); // doesn't work in clang
-		//std::vector<Endian::L16> buf(buffer, buffer + samples); // this needs c++11
-		std::vector<Endian::L16> buf(samples);
-		for (unsigned i = 0; i < samples; ++i) {
-			buf[i] = buffer[i];
-		}
+		std::vector<Endian::L16> buf(buffer, buffer + samples);
 		file.write(buf.data(), size);
 	} else {
 		file.write(buffer, size);
@@ -107,14 +100,23 @@ void Wav16Writer::write(const int16_t* buffer, unsigned samples)
 	bytes += size;
 }
 
-void Wav16Writer::write(const int* buffer, unsigned samples, int amp)
+void Wav16Writer::write(const int* buffer, unsigned stereo, unsigned samples,
+                        float ampLeft, float ampRight)
 {
-	//VLA(Endian::L16, buf, samples); // doesn't work in clang
-	std::vector<Endian::L16> buf(samples);
-	for (unsigned i = 0; i < samples; ++i) {
-		buf[i] = Math::clipIntToShort(buffer[i] * amp);
+	assert(stereo == 1 || stereo == 2);
+	std::vector<Endian::L16> buf(samples * stereo);
+	if (stereo == 1) {
+		assert(ampLeft == ampRight);
+		for (unsigned i = 0; i < samples; ++i) {
+			buf[i] = Math::clipIntToShort(lrintf(buffer[i] * ampLeft));
+		}
+	} else {
+		for (unsigned i = 0; i < samples; ++i) {
+			buf[2 * i + 0] = Math::clipIntToShort(lrintf(buffer[2 * i + 0] * ampLeft));
+			buf[2 * i + 0] = Math::clipIntToShort(lrintf(buffer[2 * i + 0] * ampRight));
+		}
 	}
-	unsigned size = sizeof(int16_t) * samples;
+	unsigned size = sizeof(int16_t) * samples * stereo;
 	file.write(buf.data(), size);
 	bytes += size;
 }

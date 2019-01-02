@@ -1,5 +1,5 @@
 #include "SDLOffScreenSurface.hh"
-#include "PNG.hh"
+#include "SDLVisibleSurface.hh"
 #include <cstring>
 
 namespace openmsx {
@@ -28,12 +28,15 @@ SDLOffScreenSurface::SDLOffScreenSurface(const SDL_Surface& proto)
 
 	setSDLSurface(surface.get());
 	setBufferPtr(static_cast<char*>(surface->pixels), surface->pitch);
+
+	// Used (only?) by 'screenshow -with-osd'.
+	renderer.reset(SDL_CreateSoftwareRenderer(surface.get()));
+	setSDLRenderer(renderer.get());
 }
 
 void SDLOffScreenSurface::saveScreenshot(const std::string& filename)
 {
-	lock();
-	PNG::save(getSDLSurface(), filename);
+	SDLVisibleSurface::saveScreenshotSDL(*this, filename);
 }
 
 void SDLOffScreenSurface::clearScreen()

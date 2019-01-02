@@ -2,13 +2,13 @@
 #include "StringOp.hh"
 #include "FileContext.hh" // for bwcompat
 #include "ConfigException.hh"
+#include "ranges.hh"
 #include "serialize.hh"
 #include "serialize_stl.hh"
-#include "stl.hh"
+#include "ranges.hh"
 #include "unreachable.hh"
 #include "xrange.hh"
 #include <cassert>
-#include <algorithm>
 
 using std::unique_ptr;
 using std::string;
@@ -45,13 +45,13 @@ void XMLElement::removeChild(const XMLElement& child)
 
 XMLElement::Attributes::iterator XMLElement::findAttribute(string_view attrName)
 {
-	return find_if(begin(attributes), end(attributes),
-	               [&](Attribute& a) { return a.first == attrName; });
+	return ranges::find_if(attributes,
+	                       [&](auto& a) { return a.first == attrName; });
 }
 XMLElement::Attributes::const_iterator XMLElement::findAttribute(string_view attrName) const
 {
-	return find_if(begin(attributes), end(attributes),
-	               [&](const Attribute& a) { return a.first == attrName; });
+	return ranges::find_if(attributes,
+	                       [&](auto& a) { return a.first == attrName; });
 }
 
 void XMLElement::addAttribute(string_view attrName, string_view value)
@@ -107,12 +107,9 @@ std::vector<const XMLElement*> XMLElement::getChildren(string_view childName) co
 
 XMLElement* XMLElement::findChild(string_view childName)
 {
-	for (auto& c : children) {
-		if (c.getName() == childName) {
-			return &c;
-		}
-	}
-	return nullptr;
+	auto it = ranges::find_if(
+	        children, [&](auto& c) { return c.getName() == childName; });
+	return (it != end(children)) ? &*it : nullptr;
 }
 const XMLElement* XMLElement::findChild(string_view childName) const
 {
@@ -140,13 +137,11 @@ const XMLElement* XMLElement::findNextChild(string_view childName,
 XMLElement* XMLElement::findChildWithAttribute(string_view childName,
 	string_view attName, string_view attValue)
 {
-	for (auto& c : children) {
-		if ((c.getName() == childName) &&
-		    (c.getAttribute(attName) == attValue)) {
-			return &c;
-		}
-	}
-	return nullptr;
+	auto it = ranges::find_if(children, [&](auto& c) {
+		return (c.getName() == childName) &&
+		       (c.getAttribute(attName) == attValue);
+	});
+	return (it != end(children)) ? &*it : nullptr;
 }
 
 const XMLElement* XMLElement::findChildWithAttribute(string_view childName,

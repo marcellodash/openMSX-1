@@ -10,10 +10,9 @@
 #include "Setting.hh"
 #include "Event.hh"
 #include "MSXException.hh"
-#include "KeyRange.hh"
-#include "memory.hh"
 #include "stl.hh"
 #include <iostream>
+#include <memory>
 
 using std::string;
 
@@ -33,7 +32,7 @@ MSXCommandController::MSXCommandController(
 {
 	globalCommandController.getInterpreter().createNamespace(machineID);
 
-	machineInfoCommand = make_unique<InfoCommand>(*this, "machine_info");
+	machineInfoCommand = std::make_unique<InfoCommand>(*this, "machine_info");
 	machineInfoCommand->setAllowedInEmptyMachine(true);
 
 	msxEventDistributor.registerEventListener(*this);
@@ -47,10 +46,10 @@ MSXCommandController::~MSXCommandController()
 
 	#ifndef NDEBUG
 	for (auto* c : commandMap) {
-		std::cout << "Command not unregistered: " << c->getName() << std::endl;
+		std::cout << "Command not unregistered: " << c->getName() << '\n';
 	}
 	for (auto* s : settings) {
-		std::cout << "Setting not unregistered: " << s->getFullName() << std::endl;
+		std::cout << "Setting not unregistered: " << s->getFullName() << '\n';
 	}
 	assert(commandMap.empty());
 	assert(settings.empty());

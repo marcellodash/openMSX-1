@@ -29,7 +29,7 @@ static void handleWarning(png_structp png_ptr, png_const_charp warning_msg)
 	auto operation = reinterpret_cast<const char*>(
 		png_get_error_ptr(png_ptr));
 	std::cerr << "Warning while " << operation << " PNG: "
-		<< warning_msg << std::endl;
+		<< warning_msg << '\n';
 }
 
 /*
@@ -144,31 +144,32 @@ SDLSurfacePtr load(const std::string& filename, bool want32bpp)
 		// format (not documented, but I checked SDL-1.2.15 source code).
 		// if (for some reason) the surface is not available yet,
 		// we just skip this
-		bool bgr(true), swapAlpha(false);
-		SDL_Surface* videoSurface = SDL_GetVideoSurface();
-		if (videoSurface) {
-			const SDL_PixelFormat& format = *videoSurface->format;
-			if (format.BitsPerPixel < 24) {
-				bgr = true; swapAlpha = false;
-			} else {
-				int r = format.Rshift;
-				int g = format.Gshift;
-				int b = format.Bshift;
-				// Can't trust Ashift in a video surface, but it's safe
-				// to assume Alpha channel is located in the leftover
-				// position.
-				if        (r ==  0 && g ==  8 && b == 16) { // RGBA
+		bool bgr(true), swapAlpha(false); // default BGRA
+
+		int displayIndex = 0;
+		SDL_DisplayMode currentMode;
+		if (SDL_GetCurrentDisplayMode(displayIndex, &currentMode) == 0) {
+			int bpp;
+			Uint32 Rmask, Gmask, Bmask, Amask;
+			SDL_PixelFormatEnumToMasks(
+				currentMode.format, &bpp, &Rmask, &Gmask, &Bmask, &Amask);
+			if (bpp >= 24) {
+				if        (Rmask == 0x000000FF &&
+					   Gmask == 0x0000FF00 &&
+					   Bmask == 0x00FF0000) { // RGB(A)
 					bgr = false; swapAlpha = false;
-				} else if (r == 16 && g ==  8 && b ==  0) { // BGRA
+				} else if (Rmask == 0x00FF0000 &&
+				           Gmask == 0x0000FF00 &&
+					   Bmask == 0x000000FF) { // BGR(A)
 					bgr = true;  swapAlpha = false;
-				} else if (r ==  8 && g == 16 && b == 24) { // ARGB
+				} else if (Rmask == 0x0000FF00 &&
+				           Gmask == 0x00FF0000 &&
+					   Bmask == 0xFF000000) { // ARGB
 					bgr = false; swapAlpha = true;
-				} else if (r == 24 && g == 16 && b ==  8) { // ABGR
+				} else if (Rmask == 0xFF000000 &&
+				           Gmask == 0x00FF0000 &&
+					   Bmask == 0x0000FF00) { // ABGR
 					bgr = true;  swapAlpha = true;
-				} else {
-					// Format not directly supported by libpng,
-					// use BGRA and still convert later.
-					// (so, use defaults)
 				}
 			}
 		}
@@ -325,13 +326,22 @@ static void IMG_SavePNG_RW(int width, int height, const void** row_pointers,
 		text[0].text = const_cast<char*>(version.c_str());
 		text[1].compression = PNG_TEXT_COMPRESSION_NONE;
 		text[1].key  = const_cast<char*>("Creation Time");
+
+		// A buffer size of 20 characters is large enough till the year
+		// 9999. But the compiler doesn't understand calendars and
+		// warns that the snprintf output could be truncated (e.g.
+		// because the year is -2147483647). To silence this warning
+		// (and also to work around the windows _snprintf stuff) we add
+		// some extra buffer space.
+		static constexpr size_t size = (10 + 1 + 8 + 1) + 44;
 		time_t now = time(nullptr);
 		struct tm* tm = localtime(&now);
-		char timeStr[10 + 1 + 8 + 1];
+		char timeStr[size];
 		snprintf(timeStr, sizeof(timeStr), "%04d-%02d-%02d %02d:%02d:%02d",
 				1900 + tm->tm_year, tm->tm_mon + 1, tm->tm_mday,
 				tm->tm_hour, tm->tm_min, tm->tm_sec);
 		text[1].text = timeStr;
+
 		png_set_text(png.ptr, png.info, text, 2);
 
 		png_set_IHDR(png.ptr, png.info, width, height, 8,
@@ -354,35 +364,19 @@ static void IMG_SavePNG_RW(int width, int height, const void** row_pointers,
 	}
 }
 
-void save(SDL_Surface* surface, const std::string& filename)
+static void save(SDL_Surface* image, const std::string& filename)
 {
-	SDL_PixelFormat frmt24;
-	frmt24.palette = nullptr;
-	frmt24.BitsPerPixel = 24;
-	frmt24.BytesPerPixel = 3;
-	frmt24.Rmask = OPENMSX_BIGENDIAN ? 0xFF0000 : 0x0000FF;
-	frmt24.Gmask = 0x00FF00;
-	frmt24.Bmask = OPENMSX_BIGENDIAN ? 0x0000FF : 0xFF0000;
-	frmt24.Amask = 0;
-	frmt24.Rshift = 0;
-	frmt24.Gshift = 8;
-	frmt24.Bshift = 16;
-	frmt24.Ashift = 0;
-	frmt24.Rloss = 0;
-	frmt24.Gloss = 0;
-	frmt24.Bloss = 0;
-	frmt24.Aloss = 8;
-	frmt24.colorkey = 0;
-	frmt24.alpha = 0;
-	SDLSurfacePtr surf24(SDL_ConvertSurface(surface, &frmt24, 0));
+	SDLAllocFormatPtr frmt24(SDL_AllocFormat(
+		OPENMSX_BIGENDIAN ? SDL_PIXELFORMAT_BGR24 : SDL_PIXELFORMAT_RGB24));
+	SDLSurfacePtr surf24(SDL_ConvertSurface(image, frmt24.get(), 0));
 
 	// Create the array of pointers to image data
-	VLA(const void*, row_pointers, surface->h);
-	for (int i = 0; i < surface->h; ++i) {
+	VLA(const void*, row_pointers, image->h);
+	for (int i = 0; i < image->h; ++i) {
 		row_pointers[i] = surf24.getLinePtr(i);
 	}
 
-	IMG_SavePNG_RW(surface->w, surface->h, row_pointers, filename, true);
+	IMG_SavePNG_RW(image->w, image->h, row_pointers, filename, true);
 }
 
 void save(unsigned width, unsigned height, const void** rowPointers,

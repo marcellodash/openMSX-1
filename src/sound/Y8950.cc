@@ -12,6 +12,7 @@
 #include "Math.hh"
 #include "cstd.hh"
 #include "outer.hh"
+#include "ranges.hh"
 #include "serialize.hh"
 #include <algorithm>
 #include <cmath>
@@ -177,7 +178,7 @@ struct AdjustTables {
 	unsigned ar[EG_MUTE];
 	unsigned ra[EG_MUTE + 1];
 };
-static CONSTEXPR AdjustTables makeAdjustTables()
+static constexpr AdjustTables makeAdjustTables()
 {
 	AdjustTables adjust = {};
 
@@ -200,13 +201,13 @@ static CONSTEXPR AdjustTables makeAdjustTables()
 	//   adjust.ra[adjust.ar[x]] == x
 	// (except for rounding errors).
 }
-static CONSTEXPR AdjustTables adjust = makeAdjustTables();
+static constexpr AdjustTables adjust = makeAdjustTables();
 
 // Table for dB(0 -- (1<<DB_BITS)) to Liner(0 -- DB2LIN_AMP_WIDTH)
 struct Db2LinTab {
 	int tab[(2 * DB_MUTE) * 2];
 };
-static CONSTEXPR Db2LinTab makeDB2LinTable()
+static constexpr Db2LinTab makeDB2LinTable()
 {
 	Db2LinTab dB2Lin = {};
 
@@ -224,10 +225,10 @@ static CONSTEXPR Db2LinTab makeDB2LinTable()
 
 	return dB2Lin;
 }
-static CONSTEXPR Db2LinTab dB2Lin = makeDB2LinTable();
+static constexpr Db2LinTab dB2Lin = makeDB2LinTable();
 
 // Liner(+0.0 - +1.0) to dB(DB_MUTE-1 -- 0)
-static CONSTEXPR unsigned lin2db(double d)
+static constexpr unsigned lin2db(double d)
 {
 	if (d < 1e-4) {
 		// (almost) zero
@@ -246,7 +247,7 @@ static CONSTEXPR unsigned lin2db(double d)
 struct SinTable {
 	unsigned table[PG_WIDTH];
 };
-static CONSTEXPR SinTable makeSinTable()
+static constexpr SinTable makeSinTable()
 {
 	SinTable sin = {};
 	for (int i = 0; i < PG_WIDTH / 4; ++i) {
@@ -260,13 +261,13 @@ static CONSTEXPR SinTable makeSinTable()
 	}
 	return sin;
 }
-static CONSTEXPR SinTable sin = makeSinTable();
+static constexpr SinTable sin = makeSinTable();
 
 // Table for Pitch Modulator
 struct PmTable {
 	int table[2][PM_PG_WIDTH];
 };
-static CONSTEXPR PmTable makePmTable()
+static constexpr PmTable makePmTable()
 {
 	PmTable pm = {};
 	for (int i = 0; i < PM_PG_WIDTH; ++i) {
@@ -276,13 +277,13 @@ static CONSTEXPR PmTable makePmTable()
 	}
 	return pm;
 }
-static CONSTEXPR PmTable pm = makePmTable();
+static constexpr PmTable pm = makePmTable();
 
 // TL Table.
 struct TllTable {
 	int table[16 * 8][4];
 };
-static CONSTEXPR TllTable makeTllTable()
+static constexpr TllTable makeTllTable()
 {
 	TllTable tll = {};
 
@@ -305,13 +306,13 @@ static CONSTEXPR TllTable makeTllTable()
 
 	return tll;
 }
-static CONSTEXPR TllTable tllTable = makeTllTable();
+static constexpr TllTable tllTable = makeTllTable();
 
 // Phase incr table for Attack.
 struct DPhaseTable {
 	Y8950::EnvPhaseIndex table[16][16];
 };
-static CONSTEXPR DPhaseTable makeDphaseARTable()
+static constexpr DPhaseTable makeDphaseARTable()
 {
 	DPhaseTable dphaseAR;
 	for (unsigned Rks = 0; Rks < 16; ++Rks) {
@@ -326,10 +327,10 @@ static CONSTEXPR DPhaseTable makeDphaseARTable()
 	}
 	return dphaseAR;
 }
-static CONSTEXPR DPhaseTable dphaseAR = makeDphaseARTable();
+static constexpr DPhaseTable dphaseAR = makeDphaseARTable();
 
 // Phase incr table for Decay and Release.
-static CONSTEXPR DPhaseTable makeDphaseDRTable()
+static constexpr DPhaseTable makeDphaseDRTable()
 {
 	DPhaseTable dphaseDR;
 	for (unsigned Rks = 0; Rks < 16; ++Rks) {
@@ -343,7 +344,7 @@ static CONSTEXPR DPhaseTable makeDphaseDRTable()
 	}
 	return dphaseDR;
 }
-static CONSTEXPR DPhaseTable dphaseDR = makeDphaseDRTable();
+static constexpr DPhaseTable dphaseDR = makeDphaseDRTable();
 
 
 // class Y8950::Patch
@@ -520,7 +521,7 @@ Y8950::Y8950(const std::string& name_, const DeviceConfig& config,
 {
 	// For debugging: print out tables to be able to compare before/after
 	// when the calculation changes.
-	if (0) {
+	if (false) {
 		for (int i = 0; i < PM_PG_WIDTH; ++i) {
 			std::cout << pm.table[0][i] << ' '
 			          << pm.table[1][i] << '\n';
@@ -599,7 +600,7 @@ void Y8950::reset(EmuTime::param time)
 
 	// update the output buffer before changing the register
 	updateStream(time);
-	for (auto& r : reg) r = 0x00;
+	ranges::fill(reg, 0x00);
 
 	reg[0x04] = 0x18;
 	reg[0x19] = 0x0F; // fixes 'Thunderbirds are Go'
@@ -1215,14 +1216,14 @@ byte Y8950::peekReg(byte rg, EmuTime::param time) const
 byte Y8950::readStatus(EmuTime::param time)
 {
 	byte result = peekStatus(time);
-	//std::cout << "status: " << (int)result << std::endl;
+	//std::cout << "status: " << (int)result << '\n';
 	return result;
 }
 
 byte Y8950::peekStatus(EmuTime::param time) const
 {
 	const_cast<Y8950Adpcm&>(adpcm).sync(time);
-	return (status & (0x80 | statusMask)) | 0x06; // bit 1 and 2 are always 1
+	return (status & (0x87 | statusMask)) | 0x06; // bit 1 and 2 are always 1
 }
 
 void Y8950::callback(byte flag)
@@ -1253,8 +1254,8 @@ byte Y8950::peekRawStatus() const
 void Y8950::changeStatusMask(byte newMask)
 {
 	statusMask = newMask;
-	status &= statusMask;
-	if (status) {
+	status &= 0x87 | statusMask;
+	if (status & statusMask) {
 		status |= 0x80;
 		irq.set();
 	} else {

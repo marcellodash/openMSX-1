@@ -45,9 +45,9 @@
 #include "EmuDuration.hh"
 #include "serialize.hh"
 #include "unreachable.hh"
-#include "memory.hh"
 #include <algorithm>
 #include <cassert>
+#include <memory>
 
 using std::string;
 using std::vector;
@@ -314,11 +314,11 @@ void CassettePlayer::insertTape(const Filename& filename)
 		FilePool& filePool = motherBoard.getReactor().getFilePool();
 		try {
 			// first try WAV
-			playImage = make_unique<WavImage>(filename, filePool);
+			playImage = std::make_unique<WavImage>(filename, filePool);
 		} catch (MSXException& e) {
 			try {
 				// if that fails use CAS
-				playImage = make_unique<CasImage>(
+				playImage = std::make_unique<CasImage>(
 					filename, filePool,
 					motherBoard.getMSXCliComm());
 			} catch (MSXException& e2) {
@@ -382,7 +382,7 @@ void CassettePlayer::rewind(EmuTime::param time)
 void CassettePlayer::recordTape(const Filename& filename, EmuTime::param time)
 {
 	removeTape(time); // flush (possible) previous recording
-	recordImage = make_unique<Wav8Writer>(filename, 1, RECORD_FREQ);
+	recordImage = std::make_unique<Wav8Writer>(filename, 1, RECORD_FREQ);
 	tapePos = EmuTime::zero;
 	setState(RECORD, filename, time);
 }
@@ -615,7 +615,7 @@ CassettePlayer::TapeCommand::TapeCommand(
 }
 
 void CassettePlayer::TapeCommand::execute(
-	array_ref<TclObject> tokens, TclObject& result, EmuTime::param time)
+	span<const TclObject> tokens, TclObject& result, EmuTime::param time)
 {
 	auto& cassettePlayer = OUTER(CassettePlayer, tapeCommand);
 	if (tokens.size() == 1) {
@@ -646,7 +646,7 @@ void CassettePlayer::TapeCommand::execute(
 			Filename filename(tokens[2].getString().str(), userFileContext());
 			cassettePlayer.playTape(filename, time);
 		} catch (MSXException& e) {
-			throw CommandException(e.getMessage());
+			throw CommandException(std::move(e).getMessage());
 		}
 
 	} else if (tokens[1] == "motorcontrol" && tokens.size() == 3) {
@@ -677,7 +677,7 @@ void CassettePlayer::TapeCommand::execute(
 				cassettePlayer.playTape(
 					cassettePlayer.getImageName(), time);
 			} catch (MSXException& e) {
-				throw CommandException(e.getMessage());
+				throw CommandException(std::move(e).getMessage());
 			}
 		} else if (cassettePlayer.getState() == CassettePlayer::STOP) {
 			throw CommandException("No tape inserted or tape at end!");
@@ -698,7 +698,7 @@ void CassettePlayer::TapeCommand::execute(
 				cassettePlayer.playTape(
 					cassettePlayer.getImageName(), time);
 			} catch (MSXException& e) {
-				throw CommandException(e.getMessage());
+				throw CommandException(std::move(e).getMessage());
 			}
 		}
 		cassettePlayer.rewind(time);
@@ -717,7 +717,7 @@ void CassettePlayer::TapeCommand::execute(
 			Filename filename(tokens[1].getString().str(), userFileContext());
 			cassettePlayer.playTape(filename, time);
 		} catch (MSXException& e) {
-			throw CommandException(e.getMessage());
+			throw CommandException(std::move(e).getMessage());
 		}
 	}
 	//if (!cassettePlayer.getConnector()) {
@@ -820,7 +820,7 @@ void CassettePlayer::TapeCommand::tabCompletion(vector<string>& tokens) const
 	}
 }
 
-bool CassettePlayer::TapeCommand::needRecord(array_ref<TclObject> tokens) const
+bool CassettePlayer::TapeCommand::needRecord(span<const TclObject> tokens) const
 {
 	return tokens.size() > 1;
 }

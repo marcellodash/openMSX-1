@@ -8,10 +8,11 @@
 #include "IntegerSetting.hh"
 #include "FloatSetting.hh"
 #include "checked_cast.hh"
-#include "memory.hh"
 #include "outer.hh"
-#include "stl.hh"
+#include "ranges.hh"
+#include "view.hh"
 #include <cassert>
+#include <memory>
 
 using std::string;
 using std::vector;
@@ -40,12 +41,9 @@ void UserSettings::deleteSetting(Setting& setting)
 
 Setting* UserSettings::findSetting(string_view name) const
 {
-	for (auto& s : settings) {
-		if (s->getFullName() == name) {
-			return s.get();
-		}
-	}
-	return nullptr;
+	auto it = ranges::find_if(
+	        settings, [&](auto& s) { return s->getFullName() == name; });
+	return (it != end(settings)) ? it->get() : nullptr;
 }
 
 
@@ -56,7 +54,7 @@ UserSettings::Cmd::Cmd(CommandController& commandController_)
 {
 }
 
-void UserSettings::Cmd::execute(array_ref<TclObject> tokens, TclObject& result)
+void UserSettings::Cmd::execute(span<const TclObject> tokens, TclObject& result)
 {
 	if (tokens.size() < 2) {
 		throw SyntaxError();
@@ -75,7 +73,7 @@ void UserSettings::Cmd::execute(array_ref<TclObject> tokens, TclObject& result)
 	}
 }
 
-void UserSettings::Cmd::create(array_ref<TclObject> tokens, TclObject& result)
+void UserSettings::Cmd::create(span<const TclObject> tokens, TclObject& result)
 {
 	if (tokens.size() < 5) {
 		throw SyntaxError();
@@ -109,7 +107,7 @@ void UserSettings::Cmd::create(array_ref<TclObject> tokens, TclObject& result)
 	result.setString(tokens[3].getString()); // name
 }
 
-unique_ptr<Setting> UserSettings::Cmd::createString(array_ref<TclObject> tokens)
+unique_ptr<Setting> UserSettings::Cmd::createString(span<const TclObject> tokens)
 {
 	if (tokens.size() != 6) {
 		throw SyntaxError();
@@ -117,11 +115,11 @@ unique_ptr<Setting> UserSettings::Cmd::createString(array_ref<TclObject> tokens)
 	const auto& sName   = tokens[3].getString();
 	const auto& desc    = tokens[4].getString();
 	const auto& initVal = tokens[5].getString();
-	return make_unique<StringSetting>(
+	return std::make_unique<StringSetting>(
 		getCommandController(), sName, desc, initVal);
 }
 
-unique_ptr<Setting> UserSettings::Cmd::createBoolean(array_ref<TclObject> tokens)
+unique_ptr<Setting> UserSettings::Cmd::createBoolean(span<const TclObject> tokens)
 {
 	if (tokens.size() != 6) {
 		throw SyntaxError();
@@ -129,11 +127,11 @@ unique_ptr<Setting> UserSettings::Cmd::createBoolean(array_ref<TclObject> tokens
 	const auto& sName   = tokens[3].getString();
 	const auto& desc    = tokens[4].getString();
 	const auto& initVal = tokens[5].getBoolean(getInterpreter());
-	return make_unique<BooleanSetting>(
+	return std::make_unique<BooleanSetting>(
 		getCommandController(), sName, desc, initVal);
 }
 
-unique_ptr<Setting> UserSettings::Cmd::createInteger(array_ref<TclObject> tokens)
+unique_ptr<Setting> UserSettings::Cmd::createInteger(span<const TclObject> tokens)
 {
 	if (tokens.size() != 8) {
 		throw SyntaxError();
@@ -144,11 +142,11 @@ unique_ptr<Setting> UserSettings::Cmd::createInteger(array_ref<TclObject> tokens
 	const auto& initVal = tokens[5].getInt(interp);
 	const auto& minVal  = tokens[6].getInt(interp);
 	const auto& maxVal  = tokens[7].getInt(interp);
-	return make_unique<IntegerSetting>(
+	return std::make_unique<IntegerSetting>(
 		getCommandController(), sName, desc, initVal, minVal, maxVal);
 }
 
-unique_ptr<Setting> UserSettings::Cmd::createFloat(array_ref<TclObject> tokens)
+unique_ptr<Setting> UserSettings::Cmd::createFloat(span<const TclObject> tokens)
 {
 	if (tokens.size() != 8) {
 		throw SyntaxError();
@@ -159,11 +157,11 @@ unique_ptr<Setting> UserSettings::Cmd::createFloat(array_ref<TclObject> tokens)
 	const auto& initVal = tokens[5].getDouble(interp);
 	const auto& minVal  = tokens[6].getDouble(interp);
 	const auto& maxVal  = tokens[7].getDouble(interp);
-	return make_unique<FloatSetting>(
+	return std::make_unique<FloatSetting>(
 		getCommandController(), sName, desc, initVal, minVal, maxVal);
 }
 
-void UserSettings::Cmd::destroy(array_ref<TclObject> tokens, TclObject& /*result*/)
+void UserSettings::Cmd::destroy(span<const TclObject> tokens, TclObject& /*result*/)
 {
 	if (tokens.size() != 3) {
 		throw SyntaxError();
@@ -179,7 +177,7 @@ void UserSettings::Cmd::destroy(array_ref<TclObject> tokens, TclObject& /*result
 	userSettings.deleteSetting(*setting);
 }
 
-void UserSettings::Cmd::info(array_ref<TclObject> /*tokens*/, TclObject& result)
+void UserSettings::Cmd::info(span<const TclObject> /*tokens*/, TclObject& result)
 {
 	result.addListElements(getSettingNames());
 }
@@ -257,12 +255,9 @@ void UserSettings::Cmd::tabCompletion(vector<string>& tokens) const
 
 vector<string_view> UserSettings::Cmd::getSettingNames() const
 {
-	vector<string_view> result;
-	auto& userSettings = OUTER(UserSettings, userSettingCommand);
-	for (auto& s : userSettings.getSettings()) {
-		result.push_back(s->getFullName());
-	}
-	return result;
+	return to_vector(view::transform(
+		OUTER(UserSettings, userSettingCommand).getSettings(),
+		[](auto& s) { return s->getFullName(); }));
 }
 
 } // namespace openmsx

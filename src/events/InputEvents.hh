@@ -5,6 +5,7 @@
 #include "Keys.hh"
 #include <cstdint>
 #include <memory>
+#include <string>
 
 namespace openmsx {
 
@@ -24,30 +25,31 @@ class KeyEvent : public TimedEvent
 {
 public:
 	Keys::KeyCode getKeyCode() const { return keyCode; }
-	uint16_t getUnicode() const { return unicode; }
+	uint32_t getUnicode() const { return unicode; }
 
 protected:
-	KeyEvent(EventType type, Keys::KeyCode keyCode, uint16_t unicode);
+	KeyEvent(EventType type, Keys::KeyCode keyCode, uint32_t unicode);
 
 private:
 	void toStringImpl(TclObject& result) const override;
 	bool lessImpl(const Event& other) const override;
 	const Keys::KeyCode keyCode;
-	const uint16_t unicode;
+	const uint32_t unicode;
 };
 
 class KeyUpEvent final : public KeyEvent
 {
 public:
 	explicit KeyUpEvent(Keys::KeyCode keyCode);
-	KeyUpEvent(Keys::KeyCode keyCode, uint16_t unicode);
 };
 
 class KeyDownEvent final : public KeyEvent
 {
 public:
-	explicit KeyDownEvent(Keys::KeyCode keyCode);
-	KeyDownEvent(Keys::KeyCode keyCode, uint16_t unicode);
+	explicit KeyDownEvent(Keys::KeyCode keyCode_)
+		: KeyDownEvent(keyCode_, 0) {}
+
+	explicit KeyDownEvent(Keys::KeyCode keyCode, uint32_t unicode);
 };
 
 

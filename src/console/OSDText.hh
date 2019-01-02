@@ -20,12 +20,12 @@ public:
 
 private:
 	void invalidateLocal() override;
-	gl::vec2 getSize(const OutputRectangle& output) const override;
+	gl::vec2 getSize(const OutputSurface& output) const override;
 	uint8_t getFadedAlpha() const override;
-	std::unique_ptr<BaseImage> createSDL(OutputRectangle& output) override;
-	std::unique_ptr<BaseImage> createGL (OutputRectangle& output) override;
+	std::unique_ptr<BaseImage> createSDL(OutputSurface& output) override;
+	std::unique_ptr<BaseImage> createGL (OutputSurface& output) override;
 	template <typename IMAGE> std::unique_ptr<BaseImage> create(
-		OutputRectangle& output);
+		OutputSurface& output);
 
 	template<typename FindSplitPointFunc, typename CantSplitFunc>
 	size_t split(const std::string& line, unsigned maxWidth,
@@ -33,8 +33,8 @@ private:
 		bool removeTrailingSpaces) const;
 	size_t splitAtChar(const std::string& line, unsigned maxWidth) const;
 	size_t splitAtWord(const std::string& line, unsigned maxWidth) const;
-	std::string getCharWrappedText(const std::string& text, unsigned maxWidth) const;
-	std::string getWordWrappedText(const std::string& text, unsigned maxWidth) const;
+	std::string getCharWrappedText(const std::string& txt, unsigned maxWidth) const;
+	std::string getWordWrappedText(const std::string& txt, unsigned maxWidth) const;
 
 	gl::vec2 getRenderedSize() const;
 

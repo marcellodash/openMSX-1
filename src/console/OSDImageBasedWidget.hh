@@ -25,14 +25,14 @@ public:
 
 protected:
 	OSDImageBasedWidget(Display& display, const TclObject& name);
-	~OSDImageBasedWidget();
+	~OSDImageBasedWidget() override;
 	bool hasConstantAlpha() const;
-	void createImage(OutputRectangle& output);
+	void createImage(OutputSurface& output);
 	void invalidateLocal() override;
 	void paintSDL(OutputSurface& output) override;
 	void paintGL (OutputSurface& output) override;
-	virtual std::unique_ptr<BaseImage> createSDL(OutputRectangle& output) = 0;
-	virtual std::unique_ptr<BaseImage> createGL (OutputRectangle& output) = 0;
+	virtual std::unique_ptr<BaseImage> createSDL(OutputSurface& output) = 0;
+	virtual std::unique_ptr<BaseImage> createGL (OutputSurface& output) = 0;
 
 	void setError(std::string message);
 	bool hasError() const { return error; }
@@ -43,11 +43,11 @@ private:
 	void setRGBA(const uint32_t newRGBA[4]);
 	bool isFading() const;
 	float getCurrentFadeValue() const;
-	float getCurrentFadeValue(uint64_t) const;
+	float getCurrentFadeValue(uint64_t now) const;
 	void updateCurrentFadeValue();
 
 	void paint(OutputSurface& output, bool openGL);
-	gl::vec2 getTransformedPos(const OutputRectangle& output) const;
+	gl::vec2 getTransformedPos(const OutputSurface& output) const;
 
 	uint64_t startFadeTime;
 	float fadePeriod;

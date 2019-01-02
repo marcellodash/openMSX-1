@@ -8,13 +8,13 @@
 #include "Math.hh"
 #include "MemBuffer.hh"
 #include "serialize.hh"
-#include "memory.hh"
 #include "vla.hh"
 #include <algorithm>
-#include <vector>
 #include <cassert>
 #include <cmath>
 #include <cstring>
+#include <memory>
+#include <vector>
 
 using std::max;
 using std::min;
@@ -252,16 +252,16 @@ void ImagePrinter::ensurePrintPage()
 		// A4 paper format (210mm x 297mm) at 300dpi
 		// TODO make this configurable
 		int dpi = dpiSetting->getInt();
-		unsigned paperSizeX = unsigned((210 / 25.4) * dpi);
-		unsigned paperSizeY = unsigned((297 / 25.4) * dpi);
+		auto paperSizeX = unsigned((210 / 25.4) * dpi);
+		auto paperSizeY = unsigned((297 / 25.4) * dpi);
 
 		unsigned dotsX, dotsY;
 		getNumberOfDots(dotsX, dotsY);
 		pixelSizeX = double(paperSizeX) / dotsX;
 		pixelSizeY = double(paperSizeY) / dotsY;
 
-		paper = make_unique<Paper>(paperSizeX, paperSizeY,
-		                           pixelSizeX, pixelSizeY);
+		paper = std::make_unique<Paper>(paperSizeX, paperSizeY,
+		                                pixelSizeX, pixelSizeY);
 	}
 }
 

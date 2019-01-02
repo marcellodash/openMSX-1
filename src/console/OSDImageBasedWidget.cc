@@ -7,6 +7,9 @@
 #include "TclObject.hh"
 #include "CommandException.hh"
 #include "Timer.hh"
+#include "ranges.hh"
+#include "stl.hh"
+#include "view.hh"
 #include "xrange.hh"
 #include <algorithm>
 #include <cassert>
@@ -25,9 +28,7 @@ OSDImageBasedWidget::OSDImageBasedWidget(Display& display_, const TclObject& nam
 	, startFadeValue(1.0)
 	, error(false)
 {
-	for (auto i : xrange(4)) {
-		rgba[i] = 0x000000ff;
-	}
+	ranges::fill(rgba, 0x000000ff);
 }
 
 OSDImageBasedWidget::~OSDImageBasedWidget() = default;
@@ -39,7 +40,7 @@ vector<string_view> OSDImageBasedWidget::getProperties() const
 		"-rgba", "-rgb", "-alpha", "-fadePeriod", "-fadeTarget",
 		"-fadeCurrent",
 	};
-	result.insert(end(result), std::begin(vals), std::end(vals));
+	append(result, vals);
 	return result;
 }
 
@@ -118,10 +119,9 @@ static void set4(const uint32_t rgba[4], uint32_t mask, unsigned shift, TclObjec
 	if ((rgba[0] == rgba[1]) && (rgba[0] == rgba[2]) && (rgba[0] == rgba[3])) {
 		result.setInt((rgba[0] & mask) >> shift);
 	} else {
-
-		for (auto i : xrange(4)) {
-			result.addListElement(int((rgba[i] & mask) >> shift));
-		}
+		result.addListElements(view::transform(xrange(4), [&](auto i) {
+			return int((rgba[i] & mask) >> shift);
+		}));
 	}
 }
 void OSDImageBasedWidget::getProperty(string_view propName, TclObject& result) const
@@ -211,7 +211,7 @@ void OSDImageBasedWidget::invalidateLocal()
 	image.reset();
 }
 
-vec2 OSDImageBasedWidget::getTransformedPos(const OutputRectangle& output) const
+vec2 OSDImageBasedWidget::getTransformedPos(const OutputSurface& output) const
 {
 	return getParent()->transformPos(
 		output, float(getScaleFactor(output)) * getPos(), getRelPos());
@@ -243,7 +243,7 @@ void OSDImageBasedWidget::paintGL(OutputSurface& output)
 	paint(output, true);
 }
 
-void OSDImageBasedWidget::createImage(OutputRectangle& output)
+void OSDImageBasedWidget::createImage(OutputSurface& output)
 {
 	if (!image && !hasError()) {
 		try {
@@ -253,7 +253,7 @@ void OSDImageBasedWidget::createImage(OutputRectangle& output)
 				image = createSDL(output);
 			}
 		} catch (MSXException& e) {
-			setError(e.getMessage());
+			setError(std::move(e).getMessage());
 		}
 	}
 }

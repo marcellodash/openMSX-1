@@ -5,6 +5,7 @@
 #include "Observer.hh"
 #include "EventListener.hh"
 #include "RTSchedulable.hh"
+#include "SDLSurfacePtr.hh"
 #include <string>
 #include <memory>
 
@@ -29,7 +30,7 @@ class VisibleSurface : public OutputSurface, public EventListener,
                        private Observer<Setting>, private RTSchedulable
 {
 public:
-	virtual ~VisibleSurface();
+	~VisibleSurface() override;
 	void updateWindowTitle();
 	bool setFullScreen(bool fullscreen);
 
@@ -58,7 +59,13 @@ protected:
 	               EventDistributor& eventDistributor,
 	               InputEventGenerator& inputEventGenerator,
 	               CliComm& cliComm);
-	void createSurface(unsigned width, unsigned height, int flags);
+	void createSurface(int width, int height, unsigned flags);
+
+	SDLSubSystemInitializer<SDL_INIT_VIDEO> videoSubSystem;
+	SDLWindowPtr window;
+	SDLRendererPtr renderer;
+	SDLSurfacePtr surface;
+	SDLTexturePtr texture;
 
 private:
 	void updateCursor();

@@ -22,6 +22,7 @@ A million repetitions of "a"
 #include "MSXException.hh"
 #include "endian.hh"
 #include "likely.hh"
+#include "ranges.hh"
 #include <cassert>
 #include <cstring>
 #ifdef __SSE2__
@@ -99,12 +100,12 @@ Sha1Sum::Sha1Sum()
 	clear();
 }
 
-Sha1Sum::Sha1Sum(string_view str)
+Sha1Sum::Sha1Sum(string_view hex)
 {
-	if (str.size() != 40) {
-		throw MSXException("Invalid sha1, should be exactly 40 digits long: ", str);
+	if (hex.size() != 40) {
+		throw MSXException("Invalid sha1, should be exactly 40 digits long: ", hex);
 	}
-	parse40(str.data());
+	parse40(hex.data());
 }
 
 #ifdef __SSE2__
@@ -242,14 +243,11 @@ std::string Sha1Sum::toString() const
 
 bool Sha1Sum::empty() const
 {
-	for (const auto& ai : a) {
-		if (ai != 0) return false;
-	}
-	return true;
+	return ranges::all_of(a, [](auto& e) { return e == 0; });
 }
 void Sha1Sum::clear()
 {
-	for (auto& ai : a) ai = 0;
+	ranges::fill(a, 0);
 }
 
 

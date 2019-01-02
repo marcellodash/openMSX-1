@@ -1,9 +1,10 @@
 #include "VideoSourceSetting.hh"
 #include "CommandException.hh"
 #include "Completer.hh"
-#include "KeyRange.hh"
 #include "StringOp.hh"
+#include "ranges.hh"
 #include "stl.hh"
+#include "view.hh"
 
 namespace openmsx {
 
@@ -51,7 +52,7 @@ int VideoSourceSetting::getSource()
 		// This handles the "none" case, but also stuff like
 		// multiple V99x8/V9990 chips. Prefer the source with
 		// highest id (=newest).
-		for (auto& s : values(sources)) id = std::max(id, s);
+		for (int s : view::values(sources)) id = std::max(id, s);
 	}
 	setSource(id); // store new value
 	return id;
@@ -126,15 +127,15 @@ void VideoSourceSetting::unregisterVideoSource(int source)
 
 bool VideoSourceSetting::has(int val) const
 {
-	return contains(values(sources), val);
+	return contains(view::values(sources), val);
 }
 
 int VideoSourceSetting::has(string_view val) const
 {
-	auto it = find_if(begin(sources), end(sources),
-		[&](const Sources::value_type& p) {
-			StringOp::casecmp cmp;
-			return cmp(p.first, val); });
+	auto it = ranges::find_if(sources, [&](auto& p) {
+		StringOp::casecmp cmp;
+		return cmp(p.first, val);
+	});
 	return (it != end(sources)) ? it->second : 0;
 }
 

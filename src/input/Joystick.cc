@@ -13,9 +13,9 @@
 #include "CommandException.hh"
 #include "serialize.hh"
 #include "serialize_meta.hh"
-#include "memory.hh"
 #include "xrange.hh"
 #include "build-info.hh"
+#include <memory>
 
 using std::string;
 using std::shared_ptr;
@@ -46,7 +46,7 @@ void Joystick::registerAll(MSXEventDistributor& eventDistributor,
 			// practice.
 			if (InputEventGenerator::joystickNumButtons(joystick) != 0) {
 				controller.registerPluggable(
-					make_unique<Joystick>(
+					std::make_unique<Joystick>(
 						eventDistributor,
 						stateChangeDistributor,
 						commandController,
@@ -161,10 +161,10 @@ Joystick::Joystick(MSXEventDistributor& eventDistributor_,
 	: eventDistributor(eventDistributor_)
 	, stateChangeDistributor(stateChangeDistributor_)
 	, joystick(joystick_)
-	, joyNum(SDL_JoystickIndex(joystick_))
+	, joyNum(SDL_JoystickInstanceID(joystick_))
 	, deadSetting(globalSettings.getJoyDeadzoneSetting(joyNum))
 	, name(getJoystickName(joyNum))
-	, desc(string(SDL_JoystickName(joyNum)))
+	, desc(string(SDL_JoystickName(joystick_)))
 	, configSetting(commandController, name + "_config",
 		"joystick configuration", getConfigValue(joystick).getString())
 {

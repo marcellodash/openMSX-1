@@ -3,9 +3,9 @@
 #include "ZMBVEncoder.hh"
 #include "FrameSource.hh"
 #include "PixelOperations.hh"
-#include "unreachable.hh"
 #include "endian.hh"
-#include <algorithm>
+#include "ranges.hh"
+#include "unreachable.hh"
 #include <iterator>
 #include <cassert>
 #include <cstdlib>
@@ -114,7 +114,7 @@ static void createVectorTable()
 	}
 	assert(p == VECTOR_TAB_SIZE);
 
-	std::sort(std::begin(vectorTable), std::end(vectorTable));
+	ranges::sort(vectorTable);
 }
 
 ZMBVEncoder::ZMBVEncoder(unsigned width_, unsigned height_, unsigned bpp)
@@ -311,18 +311,18 @@ void ZMBVEncoder::addFullFrame(const SDL_PixelFormat& pixelFormat, unsigned& wor
 	}
 }
 
-const void* ZMBVEncoder::getScaledLine(FrameSource* frame, unsigned y, void* buf_)
+const void* ZMBVEncoder::getScaledLine(FrameSource* frame, unsigned y, void* workBuf_)
 {
 #if HAVE_32BPP
 	if (pixelSize == 4) { // 32bpp
-		auto* buf = static_cast<uint32_t*>(buf_);
+		auto* workBuf = static_cast<uint32_t*>(workBuf_);
 		switch (height) {
 		case 240:
-			return frame->getLinePtr320_240(y, buf);
+			return frame->getLinePtr320_240(y, workBuf);
 		case 480:
-			return frame->getLinePtr640_480(y, buf);
+			return frame->getLinePtr640_480(y, workBuf);
 		case 720:
-			return frame->getLinePtr960_720(y, buf);
+			return frame->getLinePtr960_720(y, workBuf);
 		default:
 			UNREACHABLE;
 		}
@@ -330,14 +330,14 @@ const void* ZMBVEncoder::getScaledLine(FrameSource* frame, unsigned y, void* buf
 #endif
 #if HAVE_16BPP
 	if (pixelSize == 2) { // 15bpp or 16bpp
-		auto* buf = static_cast<uint16_t*>(buf_);
+		auto* workBuf = static_cast<uint16_t*>(workBuf_);
 		switch (height) {
 		case 240:
-			return frame->getLinePtr320_240(y, buf);
+			return frame->getLinePtr320_240(y, workBuf);
 		case 480:
-			return frame->getLinePtr640_480(y, buf);
+			return frame->getLinePtr640_480(y, workBuf);
 		case 720:
-			return frame->getLinePtr960_720(y, buf);
+			return frame->getLinePtr960_720(y, workBuf);
 		default:
 			UNREACHABLE;
 		}

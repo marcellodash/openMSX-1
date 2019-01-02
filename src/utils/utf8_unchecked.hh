@@ -114,8 +114,7 @@ void advance(octet_iterator& it, distance_type n)
 }
 
 template <typename octet_iterator>
-typename std::iterator_traits<octet_iterator>::difference_type
-distance(octet_iterator first, octet_iterator last)
+auto distance(octet_iterator first, octet_iterator last)
 {
 	typename std::iterator_traits<octet_iterator>::difference_type dist;
 	for (dist = 0; first < last; ++dist) {
@@ -183,7 +182,7 @@ class iterator : public std::iterator<std::bidirectional_iterator_tag, uint32_t>
 {
 	octet_iterator it;
 public:
-	iterator() {};
+	iterator() = default;
 	explicit iterator(const octet_iterator& octet_it)
 		: it(octet_it) {}
 	// the default "big three" are OK

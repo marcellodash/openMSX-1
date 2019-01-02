@@ -28,7 +28,7 @@ public:
 	friend class EmuTime;
 
 	// constructors
-	EmuDuration()                  : time(0) {}
+	EmuDuration() = default;
 	explicit EmuDuration(uint64_t n) : time(n) {}
 	explicit EmuDuration(double duration)
 		: time(uint64_t(duration * MAIN_FREQ)) {}
@@ -45,10 +45,6 @@ public:
 	// conversions
 	double toDouble() const { return double(time) / MAIN_FREQ32; }
 	uint64_t length() const { return time; }
-
-	// assignment operator
-	EmuDuration& operator=(EmuDuration::param d)
-		{ time = d.time; return *this; }
 
 	// comparison operators
 	bool operator==(EmuDuration::param d) const
@@ -120,7 +116,7 @@ public:
 	static const EmuDuration infinity;
 
 private:
-	uint64_t time;
+	uint64_t time = 0;
 };
 
 } // namespace openmsx

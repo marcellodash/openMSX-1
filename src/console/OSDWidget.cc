@@ -4,11 +4,11 @@
 #include "CommandException.hh"
 #include "TclObject.hh"
 #include "GLUtil.hh"
-#include "memory.hh"
+#include "ranges.hh"
 #include "stl.hh"
 #include <SDL.h>
-#include <algorithm>
 #include <limits>
+#include <memory>
 
 using std::string;
 using std::vector;
@@ -181,7 +181,7 @@ void OSDWidget::resortUp(OSDWidget* elem)
 	// now move elements to correct position
 	rotate(it1, it1 + 1, it2);
 #ifdef DEBUG
-	assert(std::is_sorted(begin(subWidgets), end(subWidgets), AscendingZ()));
+	assert(ranges::is_sorted(subWidgets, AscendingZ()));
 #endif
 }
 void OSDWidget::resortDown(OSDWidget* elem)
@@ -200,7 +200,7 @@ void OSDWidget::resortDown(OSDWidget* elem)
 	// now move elements to correct position
 	rotate(it1, it2, it2 + 1);
 #ifdef DEBUG
-	assert(std::is_sorted(begin(subWidgets), end(subWidgets), AscendingZ()));
+	assert(ranges::is_sorted(subWidgets, AscendingZ()));
 #endif
 }
 
@@ -210,7 +210,7 @@ vector<string_view> OSDWidget::getProperties() const
 		"-type", "-x", "-y", "-z", "-relx", "-rely", "-scaled",
 		"-clip", "-mousecoord", "-suppressErrors",
 	};
-	return vector<string_view>(std::begin(vals), std::end(vals));
+	return to_vector<string_view>(vals);
 }
 
 void OSDWidget::setProperty(
@@ -321,7 +321,7 @@ void OSDWidget::paintSDLRecursive(OutputSurface& output)
 	if (clip) {
 		ivec2 clipPos, size;
 		getBoundingBox(output, clipPos, size);
-		scopedClip = make_unique<SDLScopedClip>(
+		scopedClip = std::make_unique<SDLScopedClip>(
 			output, clipPos[0], clipPos[1], size[0], size[1]);
 	}
 
@@ -340,7 +340,7 @@ void OSDWidget::paintGLRecursive (OutputSurface& output)
 	if (clip) {
 		ivec2 clipPos, size;
 		getBoundingBox(output, clipPos, size);
-		scopedClip = make_unique<GLScopedClip>(
+		scopedClip = std::make_unique<GLScopedClip>(
 			output, clipPos[0], clipPos[1], size[0], size[1]);
 	}
 
@@ -350,7 +350,7 @@ void OSDWidget::paintGLRecursive (OutputSurface& output)
 #endif
 }
 
-int OSDWidget::getScaleFactor(const OutputRectangle& output) const
+int OSDWidget::getScaleFactor(const OutputSurface& output) const
 {
 	if (scaled) {
 		return output.getOutputSize()[0] / 320;;
@@ -361,7 +361,7 @@ int OSDWidget::getScaleFactor(const OutputRectangle& output) const
 	}
 }
 
-vec2 OSDWidget::transformPos(const OutputRectangle& output,
+vec2 OSDWidget::transformPos(const OutputSurface& output,
                              vec2 trPos, vec2 trRelPos) const
 {
 	vec2 out = trPos
@@ -373,7 +373,7 @@ vec2 OSDWidget::transformPos(const OutputRectangle& output,
 	return out;
 }
 
-vec2 OSDWidget::transformReverse(const OutputRectangle& output, vec2 trPos) const
+vec2 OSDWidget::transformReverse(const OutputSurface& output, vec2 trPos) const
 {
 	if (const auto* p = getParent()) {
 		trPos = p->transformReverse(output, trPos);
@@ -406,19 +406,18 @@ vec2 OSDWidget::getMouseCoord() const
 		return vec2(std::numeric_limits<float>::infinity());
 	}
 
-	auto resolution = getDisplay().getOutputScreenResolution();
-	if (resolution[0] < 0) {
+	auto* output = getDisplay().getOutputSurface();
+	if (!output) {
 		throw CommandException(
 			"Can't get mouse coordinates: no window visible");
 	}
-	DummyOutputRectangle output(resolution);
 
 	int mouseX, mouseY;
 	SDL_GetMouseState(&mouseX, &mouseY);
 
-	vec2 out = transformReverse(output, vec2(mouseX, mouseY));
+	vec2 out = transformReverse(*output, vec2(mouseX, mouseY));
 
-	vec2 size = getSize(output);
+	vec2 size = getSize(*output);
 	if ((size[0] == 0.0f) || (size[1] == 0.0f)) {
 		throw CommandException(
 			"-can't get mouse coordinates: "
@@ -427,7 +426,7 @@ vec2 OSDWidget::getMouseCoord() const
 	return out / size;
 }
 
-void OSDWidget::getBoundingBox(const OutputRectangle& output,
+void OSDWidget::getBoundingBox(const OutputSurface& output,
                                ivec2& bbPos, ivec2& bbSize)
 {
 	vec2 topLeft     = transformPos(output, vec2(), vec2(0.0f));

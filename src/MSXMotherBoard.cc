@@ -41,16 +41,19 @@
 #include "serialize.hh"
 #include "serialize_stl.hh"
 #include "ScopedAssign.hh"
-#include "memory.hh"
+#include "ranges.hh"
 #include "stl.hh"
 #include "unreachable.hh"
+#include "view.hh"
 #include <cassert>
 #include <functional>
 #include <iostream>
+#include <memory>
 
+using std::make_unique;
 using std::string;
-using std::vector;
 using std::unique_ptr;
+using std::vector;
 
 namespace openmsx {
 
@@ -67,7 +70,7 @@ class ResetCmd final : public RecordedCommand
 {
 public:
 	explicit ResetCmd(MSXMotherBoard& motherBoard);
-	void execute(array_ref<TclObject> tokens, TclObject& result,
+	void execute(span<const TclObject> tokens, TclObject& result,
 	             EmuTime::param time) override;
 	string help(const vector<string>& tokens) const override;
 private:
@@ -78,7 +81,7 @@ class LoadMachineCmd final : public Command
 {
 public:
 	explicit LoadMachineCmd(MSXMotherBoard& motherBoard);
-	void execute(array_ref<TclObject> tokens, TclObject& result) override;
+	void execute(span<const TclObject> tokens, TclObject& result) override;
 	string help(const vector<string>& tokens) const override;
 	void tabCompletion(vector<string>& tokens) const override;
 private:
@@ -89,7 +92,7 @@ class ListExtCmd final : public Command
 {
 public:
 	explicit ListExtCmd(MSXMotherBoard& motherBoard);
-	void execute(array_ref<TclObject> tokens, TclObject& result) override;
+	void execute(span<const TclObject> tokens, TclObject& result) override;
 	string help(const vector<string>& tokens) const override;
 private:
 	MSXMotherBoard& motherBoard;
@@ -99,7 +102,7 @@ class RemoveExtCmd final : public RecordedCommand
 {
 public:
 	explicit RemoveExtCmd(MSXMotherBoard& motherBoard);
-	void execute(array_ref<TclObject> tokens, TclObject& result,
+	void execute(span<const TclObject> tokens, TclObject& result,
 	             EmuTime::param time) override;
 	string help(const vector<string>& tokens) const override;
 	void tabCompletion(vector<string>& tokens) const override;
@@ -111,7 +114,7 @@ class MachineNameInfo final : public InfoTopic
 {
 public:
 	explicit MachineNameInfo(MSXMotherBoard& motherBoard);
-	void execute(array_ref<TclObject> tokens,
+	void execute(span<const TclObject> tokens,
 	             TclObject& result) const override;
 	string help(const vector<string>& tokens) const override;
 private:
@@ -122,7 +125,7 @@ class MachineTypeInfo final : public InfoTopic
 {
 public:
 	explicit MachineTypeInfo(MSXMotherBoard& motherBoard);
-	void execute(array_ref<TclObject> tokens,
+	void execute(span<const TclObject> tokens,
 	             TclObject& result) const override;
 	string help(const vector<string>& tokens) const override;
 private:
@@ -133,7 +136,7 @@ class DeviceInfo final : public InfoTopic
 {
 public:
 	explicit DeviceInfo(MSXMotherBoard& motherBoard);
-	void execute(array_ref<TclObject> tokens,
+	void execute(span<const TclObject> tokens,
 	             TclObject& result) const override;
 	string help(const vector<string>& tokens) const override;
 	void tabCompletion(vector<string>& tokens) const override;
@@ -144,7 +147,7 @@ private:
 class FastForwardHelper final : private Schedulable
 {
 public:
-	explicit FastForwardHelper(MSXMotherBoard& msxMotherBoardImpl);
+	explicit FastForwardHelper(MSXMotherBoard& motherBoard);
 	void setTarget(EmuTime::param targetTime);
 private:
 	void executeUntil(EmuTime::param time) override;
@@ -246,7 +249,7 @@ void MSXMotherBoard::deleteMachine()
 		} catch (MSXException& e) {
 			std::cerr << "Internal error: failed to remove "
 			             "extension while deleting a machine: "
-			          << e.getMessage() << std::endl;
+			          << e.getMessage() << '\n';
 			UNREACHABLE;
 		}
 	}
@@ -347,9 +350,9 @@ string MSXMotherBoard::insertExtension(
 
 HardwareConfig* MSXMotherBoard::findExtension(string_view extensionName)
 {
-	auto it = std::find_if(begin(extensions), end(extensions),
-		[&](Extensions::value_type& v) {
-			return v->getName() == extensionName; });
+	auto it = ranges::find_if(extensions, [&](auto& v) {
+		return v->getName() == extensionName;
+	});
 	return (it != end(extensions)) ? it->get() : nullptr;
 }
 
@@ -644,12 +647,9 @@ void MSXMotherBoard::exitCPULoopSync()
 
 MSXDevice* MSXMotherBoard::findDevice(string_view name)
 {
-	for (auto& d : availableDevices) {
-		if (d->getName() == name) {
-			return d;
-		}
-	}
-	return nullptr;
+	auto it = ranges::find_if(availableDevices,
+	                          [&](auto* d) { return d->getName() == name; });
+	return (it != end(availableDevices)) ? *it : nullptr;
 }
 
 MSXMapperIO& MSXMotherBoard::createMapperIO()
@@ -698,7 +698,7 @@ string MSXMotherBoard::getUserName(const string& hwName)
 	string userName;
 	do {
 		userName = strCat("untitled", ++n);
-	} while (find(begin(s), end(s), userName) != end(s));
+	} while (contains(s, userName));
 	s.push_back(userName);
 	return userName;
 }
@@ -735,7 +735,7 @@ ResetCmd::ResetCmd(MSXMotherBoard& motherBoard_)
 {
 }
 
-void ResetCmd::execute(array_ref<TclObject> /*tokens*/, TclObject& /*result*/,
+void ResetCmd::execute(span<const TclObject> /*tokens*/, TclObject& /*result*/,
                        EmuTime::param /*time*/)
 {
 	motherBoard.doReset();
@@ -779,7 +779,7 @@ LoadMachineCmd::LoadMachineCmd(MSXMotherBoard& motherBoard_)
 	setAllowedInEmptyMachine(true);
 }
 
-void LoadMachineCmd::execute(array_ref<TclObject> tokens, TclObject& result)
+void LoadMachineCmd::execute(span<const TclObject> tokens, TclObject& result)
 {
 	if (tokens.size() != 2) {
 		throw SyntaxError();
@@ -809,11 +809,11 @@ ListExtCmd::ListExtCmd(MSXMotherBoard& motherBoard_)
 {
 }
 
-void ListExtCmd::execute(array_ref<TclObject> /*tokens*/, TclObject& result)
+void ListExtCmd::execute(span<const TclObject> /*tokens*/, TclObject& result)
 {
-	for (auto& e : motherBoard.getExtensions()) {
-		result.addListElement(e->getName());
-	}
+	result.addListElements(
+		view::transform(motherBoard.getExtensions(),
+		                [&](auto& e) { return e->getName(); }));
 }
 
 string ListExtCmd::help(const vector<string>& /*tokens*/) const
@@ -829,11 +829,11 @@ ExtCmd::ExtCmd(MSXMotherBoard& motherBoard_, std::string commandName_)
 	                  motherBoard_.getScheduler(),
 	                  commandName_)
 	, motherBoard(motherBoard_)
-	, commandName(std::move(commandName))
+	, commandName(std::move(commandName_))
 {
 }
 
-void ExtCmd::execute(array_ref<TclObject> tokens, TclObject& result,
+void ExtCmd::execute(span<const TclObject> tokens, TclObject& result,
                      EmuTime::param /*time*/)
 {
 	if (tokens.size() != 2) {
@@ -846,7 +846,7 @@ void ExtCmd::execute(array_ref<TclObject> tokens, TclObject& result,
 		result.setString(motherBoard.loadExtension(
 			tokens[1].getString(), slotname));
 	} catch (MSXException& e) {
-		throw CommandException(e.getMessage());
+		throw CommandException(std::move(e).getMessage());
 	}
 }
 
@@ -872,7 +872,7 @@ RemoveExtCmd::RemoveExtCmd(MSXMotherBoard& motherBoard_)
 {
 }
 
-void RemoveExtCmd::execute(array_ref<TclObject> tokens, TclObject& /*result*/,
+void RemoveExtCmd::execute(span<const TclObject> tokens, TclObject& /*result*/,
                            EmuTime::param /*time*/)
 {
 	if (tokens.size() != 2) {
@@ -899,10 +899,9 @@ string RemoveExtCmd::help(const vector<string>& /*tokens*/) const
 void RemoveExtCmd::tabCompletion(vector<string>& tokens) const
 {
 	if (tokens.size() == 2) {
-		vector<string_view> names;
-		for (auto& e : motherBoard.getExtensions()) {
-			names.emplace_back(e->getName());
-		}
+		auto names = to_vector(view::transform(
+			motherBoard.getExtensions(),
+			[](auto& e) { return e->getName(); }));
 		completeString(tokens, names);
 	}
 }
@@ -916,7 +915,7 @@ MachineNameInfo::MachineNameInfo(MSXMotherBoard& motherBoard_)
 {
 }
 
-void MachineNameInfo::execute(array_ref<TclObject> /*tokens*/,
+void MachineNameInfo::execute(span<const TclObject> /*tokens*/,
                               TclObject& result) const
 {
 	result.setString(motherBoard.getMachineName());
@@ -935,7 +934,7 @@ MachineTypeInfo::MachineTypeInfo(MSXMotherBoard& motherBoard_)
 {
 }
 
-void MachineTypeInfo::execute(array_ref<TclObject> /*tokens*/,
+void MachineTypeInfo::execute(span<const TclObject> /*tokens*/,
                               TclObject& result) const
 {
 	result.setString(motherBoard.getMachineType());
@@ -955,13 +954,13 @@ DeviceInfo::DeviceInfo(MSXMotherBoard& motherBoard_)
 {
 }
 
-void DeviceInfo::execute(array_ref<TclObject> tokens, TclObject& result) const
+void DeviceInfo::execute(span<const TclObject> tokens, TclObject& result) const
 {
 	switch (tokens.size()) {
 	case 2:
-		for (auto& d : motherBoard.availableDevices) {
-			result.addListElement(d->getName());
-		}
+		result.addListElements(
+			view::transform(motherBoard.availableDevices,
+			                [](auto& d) { return d->getName(); }));
 		break;
 	case 3: {
 		string_view deviceName = tokens[2].getString();
@@ -987,10 +986,9 @@ string DeviceInfo::help(const vector<string>& /*tokens*/) const
 void DeviceInfo::tabCompletion(vector<string>& tokens) const
 {
 	if (tokens.size() == 3) {
-		vector<string> names;
-		for (auto& d : motherBoard.availableDevices) {
-			names.push_back(d->getName());
-		}
+		auto names = to_vector(view::transform(
+			motherBoard.availableDevices,
+			[](auto& d) { return d->getName(); }));
 		completeString(tokens, names);
 	}
 }

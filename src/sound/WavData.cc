@@ -1,6 +1,6 @@
 #include "WavData.hh"
 #include "MSXException.hh"
-#include <SDL.h>
+#include "SDLSurfacePtr.hh"
 #include <cassert>
 
 using std::string;
@@ -15,11 +15,12 @@ static inline bool is8Bit(Uint16 format)
 WavData::WavData(const string& filename, unsigned wantedBits, unsigned wantedFreq)
 {
 	SDL_AudioSpec wavSpec;
-	Uint8* wavBuf;
+	Uint8* wavBuf_;
 	Uint32 wavLen;
-	if (!SDL_LoadWAV(filename.c_str(), &wavSpec, &wavBuf, &wavLen)) {
+	if (!SDL_LoadWAV(filename.c_str(), &wavSpec, &wavBuf_, &wavLen)) {
 		throw MSXException("WavData error: ", SDL_GetError());
 	}
+	SDLWavPtr wavBuf(wavBuf_);
 
 	freq = (wantedFreq == 0) ? unsigned(wavSpec.freq) : wantedFreq;
 	bits = (wantedBits == 0) ? (is8Bit(wavSpec.format) ? 8 : 16)
@@ -30,13 +31,11 @@ WavData::WavData(const string& filename, unsigned wantedBits, unsigned wantedFre
 	SDL_AudioCVT audioCVT;
 	if (SDL_BuildAudioCVT(&audioCVT, wavSpec.format, wavSpec.channels,
 		              wavSpec.freq, format, 1, freq) == -1) {
-		SDL_FreeWAV(wavBuf);
 		throw MSXException("Couldn't build wav converter");
 	}
 
 	buffer.resize(wavLen * audioCVT.len_mult);
-	memcpy(buffer.data(), wavBuf, wavLen);
-	SDL_FreeWAV(wavBuf);
+	memcpy(buffer.data(), wavBuf.get(), wavLen);
 	audioCVT.buf = buffer.data();
 	audioCVT.len = wavLen;
 

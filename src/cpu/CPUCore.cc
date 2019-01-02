@@ -168,7 +168,6 @@
 #include "Z80.hh"
 #include "R800.hh"
 #include "Thread.hh"
-#include "cstd.hh"
 #include "endian.hh"
 #include "likely.hh"
 #include "inline.hh"
@@ -249,7 +248,7 @@ static const byte ZSPXY0  = Z_FLAG | V_FLAG;
 static const byte ZS255   = S_FLAG;
 static const byte ZSXY255 = S_FLAG | X_FLAG | Y_FLAG;
 
-static CONSTEXPR Table initTables()
+static constexpr Table initTables()
 {
 	Table table = {};
 
@@ -278,7 +277,7 @@ static CONSTEXPR Table initTables()
 	return table;
 }
 
-static CONSTEXPR Table table = initTables();
+static constexpr Table table = initTables();
 
 // Global variable, because it should be shared between Z80 and R800.
 // It must not be shared between the CPUs of different MSX machines, but
@@ -295,7 +294,7 @@ struct CondM  { bool operator()(byte f) const { return  (f & S_FLAG) != 0; } };
 struct CondP  { bool operator()(byte f) const { return !(f & S_FLAG); } };
 struct CondPE { bool operator()(byte f) const { return  (f & V_FLAG) != 0; } };
 struct CondPO { bool operator()(byte f) const { return !(f & V_FLAG); } };
-struct CondTrue { bool operator()(byte) const { return true; } };
+struct CondTrue { bool operator()(byte /*f*/) const { return true; } };
 
 template<class T> CPUCore<T>::CPUCore(
 		MSXMotherBoard& motherboard_, const string& name,
@@ -538,7 +537,7 @@ static void toHex(byte x, char* buf)
 }
 
 template<class T> void CPUCore<T>::disasmCommand(
-	Interpreter& interp, array_ref<TclObject> tokens, TclObject& result) const
+	Interpreter& interp, span<const TclObject> tokens, TclObject& result) const
 {
 	word address = (tokens.size() < 3) ? getPC() : tokens[2].getInt(interp);
 	byte outBuf[4];
@@ -2484,7 +2483,7 @@ template<class T> void CPUCore<T>::cpuTracePost_slow()
 	     << " IX=" << std::setw(4) << getIX()
 	     << " IY=" << std::setw(4) << getIY()
 	     << " SP=" << std::setw(4) << getSP()
-	     << std::endl << std::dec;
+	     << '\n' << std::flush << std::dec;
 }
 
 template<class T> void CPUCore<T>::executeSlow()

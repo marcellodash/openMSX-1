@@ -11,25 +11,20 @@ using std::string;
 
 namespace openmsx {
 
-LocalFileReference::LocalFileReference(const Filename& filename)
-{
-	init(filename.getResolved());
-}
-
-LocalFileReference::LocalFileReference(const string& url)
-{
-	init(url);
-}
-
 LocalFileReference::LocalFileReference(File& file)
 {
 	init(file);
 }
 
-void LocalFileReference::init(const string& url)
+LocalFileReference::LocalFileReference(const string& url)
 {
 	File file(url);
 	init(file);
+}
+
+LocalFileReference::LocalFileReference(const Filename& filename)
+	: LocalFileReference(filename.getResolved())
+{
 }
 
 void LocalFileReference::init(File& file)
@@ -60,9 +55,8 @@ void LocalFileReference::init(File& file)
 	}
 
 	// write temp file
-	size_t size;
-	const byte* buf = file.mmap(size);
-	if (fwrite(buf, 1, size, fp.get()) != size) {
+	auto mmap = file.mmap();
+	if (fwrite(mmap.data(), 1, mmap.size(), fp.get()) != mmap.size()) {
 		throw FileException("Couldn't write temp file");
 	}
 }

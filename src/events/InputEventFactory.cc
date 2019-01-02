@@ -11,14 +11,14 @@ using std::make_shared;
 namespace openmsx {
 namespace InputEventFactory {
 
-static EventPtr parseKeyEvent(string_view str, unsigned unicode)
+static EventPtr parseKeyEvent(string_view str, uint32_t unicode)
 {
 	auto keyCode = Keys::getCode(str);
 	if (keyCode == Keys::K_NONE) {
 		throw CommandException("Invalid keycode: ", str);
 	}
 	if (keyCode & Keys::KD_RELEASE) {
-		return make_shared<KeyUpEvent  >(keyCode, unicode);
+		return make_shared<KeyUpEvent>(keyCode);
 	} else {
 		return make_shared<KeyDownEvent>(keyCode, unicode);
 	}

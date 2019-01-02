@@ -14,8 +14,8 @@
 #include "StringOp.hh"
 #include "strCat.hh"
 #include "File.hh"
+#include "stl.hh"
 #include <cstring>
-#include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <sys/stat.h>
@@ -338,7 +338,7 @@ static string makeSimpleMSXFileName(string_view fullFilename)
 	// handle speciale case '.' and '..' first
 	string result(8 + 3, ' ');
 	if ((fullFile == ".") || (fullFile == "..")) {
-		memcpy(&*begin(result), fullFile.data(), fullFile.size());
+		memcpy(&*begin(result), fullFile.data(), fullFile.size()); // c++17: result.data()
 		return result;
 	}
 
@@ -352,11 +352,11 @@ static string makeSimpleMSXFileName(string_view fullFilename)
 	// put in major case and create '_' if needed
 	string fileS(file.data(), std::min<size_t>(8, file.size()));
 	string extS (ext .data(), std::min<size_t>(3, ext .size()));
-	std::transform(begin(fileS), end(fileS), begin(fileS), toMSXChr);
-	std::transform(begin(extS ), end(extS ), begin(extS ), toMSXChr);
+	transform_in_place(fileS, toMSXChr);
+	transform_in_place(extS,  toMSXChr);
 
 	// add correct number of spaces
-	memcpy(&*begin(result) + 0, fileS.data(), fileS.size());
+	memcpy(&*begin(result) + 0, fileS.data(), fileS.size()); // c++17: result.data()
 	memcpy(&*begin(result) + 8, extS .data(), extS .size());
 	return result;
 }
@@ -563,10 +563,10 @@ MSXtar::DirEntry MSXtar::findEntryInDir(
 
 // Add file to the MSX disk in the subdir pointed to by 'sector'
 // @throws when file could not be added
-string MSXtar::addFileToDSK(const string& fullname, unsigned rootSector)
+string MSXtar::addFileToDSK(const string& fullHostName, unsigned rootSector)
 {
 	string_view directory, hostName;
-	StringOp::splitOnLast(fullname, "/\\", directory, hostName);
+	StringOp::splitOnLast(fullHostName, "/\\", directory, hostName);
 	string msxName = makeSimpleMSXFileName(hostName);
 
 	// first find out if the filename already exists in current dir
@@ -587,12 +587,12 @@ string MSXtar::addFileToDSK(const string& fullname, unsigned rootSector)
 
 	// compute time/date stamps
 	unsigned time, date;
-	getTimeDate(fullname, time, date);
+	getTimeDate(fullHostName, time, date);
 	dirEntry.time = time;
 	dirEntry.date = date;
 
 	try {
-		alterFileInDSK(dirEntry, fullname);
+		alterFileInDSK(dirEntry, fullHostName);
 	} catch (MSXException&) {
 		// still write directory entry
 		writeLogicalSector(entry.sector, buf);

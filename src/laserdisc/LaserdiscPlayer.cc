@@ -18,10 +18,10 @@
 #include "RendererFactory.hh"
 #include "Math.hh"
 #include "likely.hh"
-#include "memory.hh"
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 
 using std::string;
 using std::vector;
@@ -40,7 +40,7 @@ LaserdiscPlayer::Command::Command(
 }
 
 void LaserdiscPlayer::Command::execute(
-	array_ref<TclObject> tokens, TclObject& result, EmuTime::param time)
+	span<const TclObject> tokens, TclObject& result, EmuTime::param time)
 {
 	auto& laserdiscPlayer = OUTER(LaserdiscPlayer, laserdiscCommand);
 	if (tokens.size() == 1) {
@@ -56,7 +56,7 @@ void LaserdiscPlayer::Command::execute(
 			result.setString("Changing laserdisc.");
 			laserdiscPlayer.setImageName(tokens[2].getString().str(), time);
 		} catch (MSXException& e) {
-			throw CommandException(e.getMessage());
+			throw CommandException(std::move(e).getMessage());
 		}
 	} else {
 		throw SyntaxError();
@@ -311,9 +311,9 @@ void LaserdiscPlayer::remoteButtonNEC(unsigned code, EmuTime::param time)
 	}
 
 	if (!f.empty()) {
-		std::cerr << "LaserdiscPlayer::remote " << f << std::endl;
+		std::cerr << "LaserdiscPlayer::remote " << f << '\n';
 	} else {
-		std::cerr << "LaserdiscPlayer::remote unknown " << std::hex << code << std::endl;
+		std::cerr << "LaserdiscPlayer::remote unknown " << std::hex << code << '\n';
 	}
 #endif
 	// When not playing the following buttons work
@@ -628,7 +628,7 @@ void LaserdiscPlayer::setImageName(string newImage, EmuTime::param time)
 {
 	stop(time);
 	oggImage = Filename(std::move(newImage), userFileContext());
-	video = make_unique<OggReader>(oggImage, motherBoard.getMSXCliComm());
+	video = std::make_unique<OggReader>(oggImage, motherBoard.getMSXCliComm());
 
 	unsigned inputRate = video->getSampleRate();
 	sampleClock.setFreq(inputRate);
@@ -713,9 +713,11 @@ void LaserdiscPlayer::generateChannels(int** buffers, unsigned num)
 			if (pos == 0) {
 				buffers[0] = nullptr;
 				break;
-			} else for (/**/; pos < num; ++pos) {
-				buffers[0][pos * 2 + 0] = 0;
-				buffers[0][pos * 2 + 1] = 0;
+			} else {
+				for (/**/; pos < num; ++pos) {
+					buffers[0][pos * 2 + 0] = 0;
+					buffers[0][pos * 2 + 1] = 0;
+				}
 			}
 		} else {
 			auto offset = unsigned(lastPlayedSample - audio->position);

@@ -1,8 +1,8 @@
 #include "InfoCommand.hh"
 #include "TclObject.hh"
 #include "CommandException.hh"
-#include "KeyRange.hh"
 #include "unreachable.hh"
+#include "view.hh"
 #include <iostream>
 #include <cassert>
 
@@ -26,7 +26,7 @@ void InfoCommand::registerTopic(InfoTopic& topic)
 #ifndef NDEBUG
 	if (infoTopics.contains(topic.getName())) {
 		std::cerr << "INTERNAL ERROR: already have an info topic with "
-		             "name " << topic.getName() << std::endl;
+		             "name " << topic.getName() << '\n';
 		UNREACHABLE;
 	}
 #endif
@@ -37,7 +37,7 @@ void InfoCommand::unregisterTopic(InfoTopic& topic)
 {
 	if (!infoTopics.contains(topic.getName())) {
 		std::cerr << "INTERNAL ERROR: can't unregister topic with name "
-		          << topic.getName() << ", not found!" << std::endl;
+		          << topic.getName() << ", not found!\n";
 		UNREACHABLE;
 	}
 	infoTopics.erase(topic.getName());
@@ -45,15 +45,14 @@ void InfoCommand::unregisterTopic(InfoTopic& topic)
 
 // Command
 
-void InfoCommand::execute(array_ref<TclObject> tokens,
+void InfoCommand::execute(span<const TclObject> tokens,
                           TclObject& result)
 {
 	switch (tokens.size()) {
 	case 1:
 		// list topics
-		for (auto* t : infoTopics) {
-			result.addListElement(t->getName());
-		}
+		result.addListElements(view::transform(
+			infoTopics, [](auto* t) { return t->getName(); }));
 		break;
 	default:
 		// show info about topic
@@ -95,10 +94,8 @@ void InfoCommand::tabCompletion(vector<string>& tokens) const
 	switch (tokens.size()) {
 	case 2: {
 		// complete topic
-		vector<string_view> topics;
-		for (auto* t : infoTopics) {
-			topics.emplace_back(t->getName());
-		}
+		auto topics = to_vector(view::transform(
+			infoTopics, [](auto* t) { return t->getName(); }));
 		completeString(tokens, topics);
 		break;
 	}

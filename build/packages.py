@@ -8,7 +8,7 @@ class Package(object):
 
 	@classmethod
 	def getMakeName(cls):
-		return cls.sourceName.upper()
+		return cls.sourceName.upper().replace('-', '_')
 
 class DownloadablePackage(Package):
 	'''Abstract base class for packages that can be downloaded.
@@ -38,11 +38,11 @@ class ALSA(DownloadablePackage):
 	downloadURL = 'ftp://ftp.alsa-project.org/pub/lib/'
 	niceName = 'ALSA'
 	sourceName = 'alsa-lib'
-	version = '1.1.0'
-	fileLength = 929874
+	version = '1.1.7'
+	fileLength = 1005257
 	checksums = {
 		'sha256':
-			'dfde65d11e82b68f82e562ab6228c1fb7c78854345d3c57e2c68a9dd3dae1f15',
+			'9d6000b882a3b2df56300521225d69717be6741b71269e488bb20a20783bdc09',
 		}
 
 	@classmethod
@@ -98,11 +98,11 @@ class OGG(DownloadablePackage):
 	downloadURL = 'http://downloads.xiph.org/releases/ogg'
 	niceName = 'libogg'
 	sourceName = 'libogg'
-	version = '1.3.0'
-	fileLength = 425144
+	version = '1.3.3'
+	fileLength = 579853
 	checksums = {
 		'sha256':
-			'a8de807631014615549d2356fd36641833b8288221cea214f8a72750efe93780',
+			'c2e8a485110b97550f453226ec644ebac6cb29d1caef2902c007edab4308d985',
 		}
 
 	@classmethod
@@ -113,50 +113,38 @@ class OpenGL(Package):
 	niceName = 'OpenGL'
 	sourceName = 'gl'
 
-class SDL(DownloadablePackage):
+class PkgConfig(DownloadablePackage):
+	downloadURL = 'https://pkg-config.freedesktop.org/releases'
+	niceName = 'pkg-config'
+	sourceName = 'pkg-config'
+	version = '0.29.2'
+	fileLength = 2016830
+	checksums = {
+		'sha256':
+			'6fc69c01688c9458a57eb9a1664c9aba372ccda420a02bf4429fe610e7e7d591',
+		}
+
+class SDL2(DownloadablePackage):
 	downloadURL = 'http://www.libsdl.org/release'
-	niceName = 'SDL'
-	sourceName = 'SDL'
-	version = '1.2.15'
-	fileLength = 3920622
+	niceName = 'SDL2'
+	sourceName = 'SDL2'
+	version = '2.0.9'
+	fileLength = 5246942
 	checksums = {
 		'sha256':
-			'd6d316a793e5e348155f0dd93b979798933fb98aa1edebcc108829d6474aad00',
+			'255186dc676ecd0c1dbf10ec8a2cc5d6869b5079d8a38194c2aecdff54b324b1',
 		}
 
-class SDL_ttf(DownloadablePackage):
+class SDL2_ttf(DownloadablePackage):
 	downloadURL = 'http://www.libsdl.org/projects/SDL_ttf/release'
-	niceName = 'SDL_ttf'
-	sourceName = 'SDL_ttf'
-	version = '2.0.11'
-	fileLength = 4053686
+	niceName = 'SDL2_ttf'
+	sourceName = 'SDL2_ttf'
+	version = '2.0.14'
+	fileLength = 4147462
 	checksums = {
 		'sha256':
-			'724cd895ecf4da319a3ef164892b72078bd92632a5d812111261cde248ebcdb7',
+			'34db5e20bcf64e7071fe9ae25acaa7d72bdc4f11ab3ce59acc768ab62fe39276',
 		}
-
-class TCL_ANDROID(DownloadablePackage):
-	downloadURL = 'http://downloads.sourceforge.net/tcl'
-	niceName = 'Tcl'
-	sourceName = 'tcl'
-	version = '8.5.11'
-	fileLength = 4484001
-	checksums = {
-		'sha256':
-			'8addc385fa6b5be4605e6d68fbdc4c0e674c5af1dc1c95ec5420390c4b08042a',
-		}
-
-	@classmethod
-	def getMakeName(cls):
-		return 'TCL_ANDROID'
-
-	@classmethod
-	def getSourceDirName(cls):
-		return '%s%s' % (cls.sourceName, cls.version)
-
-	@classmethod
-	def getTarballName(cls):
-		return '%s%s-src.tar.gz' % (cls.sourceName, cls.version)
 
 class TCL(DownloadablePackage):
 	downloadURL = 'http://downloads.sourceforge.net/tcl'
@@ -196,11 +184,11 @@ class Vorbis(DownloadablePackage):
 	downloadURL = 'http://downloads.xiph.org/releases/vorbis'
 	niceName = 'libvorbis'
 	sourceName = 'libvorbis'
-	version = '1.3.3'
-	fileLength = 1592663
+	version = '1.3.6'
+	fileLength = 1634357
 	checksums = {
 		'sha256':
-			'6d747efe7ac4ad249bf711527882cef79fb61d9194c45b5ca5498aa60f290762',
+			'6ed40e0241089a42c48604dc00e362beee00036af2d8b3f46338031c9e0351cb',
 		}
 
 	@classmethod

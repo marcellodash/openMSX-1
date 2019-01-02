@@ -1,5 +1,6 @@
 #include "TclParser.hh"
 #include "ScopedAssign.hh"
+#include "ranges.hh"
 #include "strCat.hh"
 #include <algorithm>
 #include <iostream>
@@ -10,7 +11,7 @@ using std::string;
 #if DEBUG_TCLPARSER
 void TclParser::DEBUG_PRINT(const string& s)
 {
-	std::cout << string(2 * level, ' ') << s << std::endl;
+	std::cout << string(2 * level, ' ') << s << '\n';
 }
 
 static string_view type2string(int type)
@@ -54,19 +55,15 @@ static bool isNumber(string_view str)
 	}
 	if (str.starts_with("0x") || str.starts_with("0X")) {
 		str.remove_prefix(2);
-		for (auto c : str) {
-			if (!inRange(c, '0', '9') &&
-			    !inRange(c, 'a', 'f') &&
-			    !inRange(c, 'A', 'F')) {
-				return false;
-			}
-		}
+		return ranges::all_of(str, [](char c) {
+			return inRange(c, '0', '9') ||
+			       inRange(c, 'a', 'f') ||
+			       inRange(c, 'A', 'F');
+		});
 	} else {
-		for (auto c : str) {
-			if (!inRange(c, '0', '9')) return false;
-		}
+		return ranges::all_of(str,
+		                      [](char c) { return inRange(c, '0', '9'); });
 	}
-	return true;
 }
 
 

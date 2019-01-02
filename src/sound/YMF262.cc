@@ -373,7 +373,7 @@ struct TlTab {
 	int tab[TL_TAB_LEN];
 };
 
-static CONSTEXPR TlTab getTlTab()
+static constexpr TlTab getTlTab()
 {
 	TlTab t = {};
 	// this _is_ different from OPL2 (verified on real YMF262)
@@ -400,7 +400,7 @@ static CONSTEXPR TlTab getTlTab()
 	return t;
 }
 
-static CONSTEXPR TlTab tl = getTlTab();
+static constexpr TlTab tl = getTlTab();
 
 
 // sin waveform table in 'decibel' scale
@@ -409,7 +409,7 @@ struct SinTab {
 	unsigned tab[SIN_LEN * 8];
 };
 
-static CONSTEXPR SinTab getSinTab()
+static constexpr SinTab getSinTab()
 {
 	SinTab sin = {};
 
@@ -489,7 +489,7 @@ static CONSTEXPR SinTab getSinTab()
 	return sin;
 }
 
-static CONSTEXPR SinTab sin = getSinTab();
+static constexpr SinTab sin = getSinTab();
 
 
 // TODO clean this up
@@ -1452,6 +1452,8 @@ void YMF262::reset(EmuTime::param time)
 			sl.volume = MAX_ATT_INDEX;
 		}
 	}
+
+	setMixLevel(0x1b, time); // -9dB left and right
 }
 
 YMF262::YMF262(const std::string& name_,
@@ -1481,7 +1483,7 @@ YMF262::YMF262(const std::string& name_,
 
 	// For debugging: print out tables to be able to compare before/after
 	// when the calculation changes.
-	if (0) {
+	if (false) {
 		for (auto& e : tl.tab) std::cout << e << '\n';
 		std::cout << '\n';
 		for (auto& e : sin.tab) std::cout << e << '\n';
@@ -1492,8 +1494,8 @@ YMF262::YMF262(const std::string& name_,
 	            : 4 * 3579545.0f / ( 8 * 36);
 	setInputRate(lrintf(input));
 
-	reset(config.getMotherBoard().getCurrentTime());
 	registerSound(config);
+	reset(config.getMotherBoard().getCurrentTime()); // must come after registerSound() because of call to setSoftwareVolume() via setMixLevel()
 }
 
 YMF262::~YMF262()
@@ -1529,9 +1531,27 @@ bool YMF262::checkMuteHelper()
 	return true;
 }
 
+void YMF262::setMixLevel(uint8_t x, EmuTime::param time)
+{
+	// Only present on YMF278
+	// see mix_level[] and vol_factor() in YMF278.cc
+	using T = SoundDevice::VolumeType;
+	static const T level[8] = {
+		T(1.00 / 1), //   0dB
+		T(0.75 / 1), //  -3dB (approx)
+		T(1.00 / 2), //  -6dB
+		T(0.75 / 2), //  -9dB (approx)
+		T(1.00 / 4), // -12dB
+		T(0.75 / 4), // -15dB (approx)
+		T(1.00 / 8), // -18dB
+		T(0.0     ), // -inf dB
+	};
+	setSoftwareVolume(level[x & 7], level[(x >> 3) & 7], time);
+}
+
 int YMF262::getAmplificationFactorImpl() const
 {
-	return 1 << 2;
+	return 1 << 3;
 }
 
 void YMF262::generateChannels(int** bufs, unsigned num)
@@ -1621,7 +1641,7 @@ template<typename Archive>
 void YMF262::Slot::serialize(Archive& a, unsigned /*version*/)
 {
 	// wavetable
-	unsigned waveform = unsigned((wavetable - sin.tab) / SIN_LEN);
+	auto waveform = unsigned((wavetable - sin.tab) / SIN_LEN);
 	a.serialize("waveform", waveform);
 	if (a.isLoader()) {
 		wavetable = &sin.tab[waveform * SIN_LEN];

@@ -15,7 +15,7 @@ class OSDTopWidget final : public OSDWidget
 public:
 	explicit OSDTopWidget(Display& display);
 	string_view getType() const override;
-	gl::vec2 getSize(const OutputRectangle& output) const override;
+	gl::vec2 getSize(const OutputSurface& output) const override;
 
 	void queueError(std::string message);
 	void showAllErrors();

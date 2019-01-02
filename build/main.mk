@@ -353,26 +353,20 @@ ifneq ($(filter %clang++,$(CXX))$(filter clang++%,$(CXX)),)
   # Hardware descriptions can contain constants that are not used in the code
   # but still useful as documentation.
   COMPILE_FLAGS+=-Wno-unused-const-variable
-  CC:=$(shell clang++ -print-prog-name=clang)
+  CC:=$(subst clang++,clang,$(CXX))
   DEPEND_FLAGS+=-MP
 else
 ifneq ($(filter %g++,$(CXX))$(filter g++%,$(CXX))$(findstring /g++-,$(CXX)),)
   # Generic compilation flags.
   COMPILE_FLAGS+=-pipe
-  # Enable C++11
-  COMPILE_FLAGS+=-std=c++11
+  # Enable C++14
+  COMPILE_FLAGS+=-std=c++14
   # Stricter warning and error reporting.
-  COMPILE_FLAGS+=-Wall -Wextra -Wundef -Wno-invalid-offsetof -Wunused-macros -Wdouble-promotion -Wmissing-declarations -Wshadow
+  COMPILE_FLAGS+=-Wall -Wextra -Wundef -Wno-invalid-offsetof -Wunused-macros -Wdouble-promotion -Wmissing-declarations -Wshadow -Wold-style-cast
   # Flag that is not accepted by old GCC versions.
   COMPILE_FLAGS+=$(shell \
     echo | $(CXX) -E -Wno-missing-field-initializers - >/dev/null 2>&1 \
     && echo -Wno-missing-field-initializers \
-    )
-
-  # When supported use c++14 (gcc-4.8 does not yet support this)
-  COMPILE_FLAGS+=$(shell \
-    echo | $(CXX) -E -std=c++14 - >/dev/null 2>&1 \
-    && echo -std=c++14 \
     )
 
   # -Wzero-as-null-pointer-constant is available from gcc-4.7
@@ -477,30 +471,20 @@ else
 all: $(MAIN_EXECUTABLE)
 endif
 
-# This is a workaround for the lack of order-only dependencies in GNU Make
-# versions older than 3.80 (for example Mac OS X 10.3 still ships with 3.79).
-# It creates a dummy file, which is never modified after its initial creation.
-# If a rule that produces a file does not modify that file, Make considers the
-# target to be up-to-date. That way, the targets "init-dummy-file" depends on
-# will always be checked before compilation, but they will not cause all object
-# files to be considered outdated.
-INIT_DUMMY_FILE:=$(BUILD_PATH)/config/init-dummy-file
-$(INIT_DUMMY_FILE): config $(GENERATED_HEADERS)
-	$(CMD)touch -a $@
-
+ifeq ($(COMPONENT_CORE),false)
+# Force new probe.
+config: $(PROBE_MAKE)
+	$(CMD)mv $(PROBE_MAKE) $(PROBE_MAKE).failed
+	@false
+else
 # Print configuration.
 config:
-ifeq ($(COMPONENT_CORE),false)
-# Do not build if core component dependencies are not met.
-	@echo 'Cannot build openMSX because essential libraries are unavailable.'
-	@echo 'Please install the needed libraries and their header files and rerun "configure"'
-	@false
-endif
 	@echo "Build configuration:"
 	@echo "  Platform: $(PLATFORM)"
 	@echo "  Flavour:  $(OPENMSX_FLAVOUR)"
 	@echo "  Compiler: $(CXX)"
 	@echo "  Subset:   $(if $(OPENMSX_SUBSET),$(OPENMSX_SUBSET)*,full build)"
+endif
 
 # Include dependency files.
 ifneq ($(filter $(DEPEND_TARGETS),$(MAKECMDGOALS)),)
@@ -533,8 +517,8 @@ endif
 
 # Compile and generate dependency files in one go.
 DEPEND_SUBST=$(patsubst $(SOURCES_PATH)/%.cc,$(DEPEND_PATH)/%.d,$<)
-$(OBJECTS_FULL): $(INIT_DUMMY_FILE)
-$(OBJECTS_FULL): $(OBJECTS_PATH)/%.o: $(SOURCES_PATH)/%.cc $(DEPEND_PATH)/%.d
+$(OBJECTS_FULL): $(OBJECTS_PATH)/%.o: $(SOURCES_PATH)/%.cc $(DEPEND_PATH)/%.d \
+		| config $(GENERATED_HEADERS)
 	$(SUM) "Compiling $(patsubst $(SOURCES_PATH)/%,%,$<)..."
 	$(CMD)mkdir -p $(@D)
 	$(CMD)mkdir -p $(patsubst $(OBJECTS_PATH)%,$(DEPEND_PATH)%,$(@D))
@@ -549,7 +533,7 @@ $(DEPEND_FULL):
 
 # Windows resources that are added to the executable.
 ifneq ($(filter mingw%,$(OPENMSX_TARGET_OS)),)
-$(RESOURCE_HEADER): $(INIT_DUMMY_FILE) forceversionextraction
+$(RESOURCE_HEADER): forceversionextraction | config
 	$(CMD)$(PYTHON) $(RESOURCE_SCRIPT) $@
 $(RESOURCE_OBJ): $(RESOURCE_SRC) $(RESOURCE_HEADER)
 	$(SUM) "Compiling resources..."
@@ -597,7 +581,8 @@ BINDIST_DIR:=$(BUILD_PATH)/bindist
 BINDIST_PACKAGE:=
 
 # Override install locations.
-INSTALL_ROOT:=$(BINDIST_DIR)/install
+DESTDIR:=$(BINDIST_DIR)/install
+INSTALL_ROOT:=
 ifneq ($(filter mingw%,$(OPENMSX_TARGET_OS)),)
 # In Windows the "share" dir is expected at the same level as the executable,
 # so do not put the executable in "bin".
@@ -650,7 +635,7 @@ endif
 # prefix that will be used for all installed files.
 install: $(MAIN_EXECUTABLE)
 	$(CMD)$(PYTHON) build/install.py "$(DESTDIR)" \
-		$(INSTALL_BINARY_DIR) $(INSTALL_SHARE_DIR) $(INSTALL_DOC_DIR) \
+		"$(INSTALL_BINARY_DIR)" "$(INSTALL_SHARE_DIR)" "$(INSTALL_DOC_DIR)" \
 		$(MAIN_EXECUTABLE) $(OPENMSX_TARGET_OS) \
 		$(INSTALL_VERBOSE) $(INSTALL_CONTRIB)
 

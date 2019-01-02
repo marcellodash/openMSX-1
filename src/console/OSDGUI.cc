@@ -6,10 +6,10 @@
 #include "CommandException.hh"
 #include "TclObject.hh"
 #include "StringOp.hh"
-#include "memory.hh"
 #include "outer.hh"
 #include <algorithm>
 #include <cassert>
+#include <memory>
 
 using std::string;
 using std::unique_ptr;
@@ -39,7 +39,7 @@ OSDGUI::OSDCommand::OSDCommand(CommandController& commandController_)
 {
 }
 
-void OSDGUI::OSDCommand::execute(array_ref<TclObject> tokens, TclObject& result)
+void OSDGUI::OSDCommand::execute(span<const TclObject> tokens, TclObject& result)
 {
 	if (tokens.size() < 2) {
 		throw SyntaxError();
@@ -66,7 +66,7 @@ void OSDGUI::OSDCommand::execute(array_ref<TclObject> tokens, TclObject& result)
 	}
 }
 
-void OSDGUI::OSDCommand::create(array_ref<TclObject> tokens, TclObject& result)
+void OSDGUI::OSDCommand::create(span<const TclObject> tokens, TclObject& result)
 {
 	if (tokens.size() < 4) {
 		throw SyntaxError();
@@ -92,7 +92,7 @@ void OSDGUI::OSDCommand::create(array_ref<TclObject> tokens, TclObject& result)
 	}
 
 	auto widget = create(type, fullname);
-	configure(*widget, tokens, 4);
+	configure(*widget, tokens.subspan(4));
 	top.addName(*widget);
 	parent->addWidget(std::move(widget));
 
@@ -104,9 +104,9 @@ unique_ptr<OSDWidget> OSDGUI::OSDCommand::create(
 {
 	auto& gui = OUTER(OSDGUI, osdCommand);
 	if (type == "rectangle") {
-		return make_unique<OSDRectangle>(gui.display, newName);
+		return std::make_unique<OSDRectangle>(gui.display, newName);
 	} else if (type == "text") {
-		return make_unique<OSDText>(gui.display, newName);
+		return std::make_unique<OSDText>(gui.display, newName);
 	} else {
 		throw CommandException(
 			"Invalid widget type '", type, "', expected "
@@ -114,7 +114,7 @@ unique_ptr<OSDWidget> OSDGUI::OSDCommand::create(
 	}
 }
 
-void OSDGUI::OSDCommand::destroy(array_ref<TclObject> tokens, TclObject& result)
+void OSDGUI::OSDCommand::destroy(span<const TclObject> tokens, TclObject& result)
 {
 	if (tokens.size() != 3) {
 		throw SyntaxError();
@@ -140,7 +140,7 @@ void OSDGUI::OSDCommand::destroy(array_ref<TclObject> tokens, TclObject& result)
 	result.setBoolean(true);
 }
 
-void OSDGUI::OSDCommand::info(array_ref<TclObject> tokens, TclObject& result)
+void OSDGUI::OSDCommand::info(span<const TclObject> tokens, TclObject& result)
 {
 	auto& gui = OUTER(OSDGUI, osdCommand);
 	switch (tokens.size()) {
@@ -166,7 +166,7 @@ void OSDGUI::OSDCommand::info(array_ref<TclObject> tokens, TclObject& result)
 	}
 }
 
-void OSDGUI::OSDCommand::exists(array_ref<TclObject> tokens, TclObject& result)
+void OSDGUI::OSDCommand::exists(span<const TclObject> tokens, TclObject& result)
 {
 	if (tokens.size() != 3) {
 		throw SyntaxError();
@@ -176,26 +176,24 @@ void OSDGUI::OSDCommand::exists(array_ref<TclObject> tokens, TclObject& result)
 	result.setBoolean(widget != nullptr);
 }
 
-void OSDGUI::OSDCommand::configure(array_ref<TclObject> tokens, TclObject& /*result*/)
+void OSDGUI::OSDCommand::configure(span<const TclObject> tokens, TclObject& /*result*/)
 {
 	if (tokens.size() < 3) {
 		throw SyntaxError();
 	}
-	configure(getWidget(tokens[2].getString()), tokens, 3);
+	configure(getWidget(tokens[2].getString()), tokens.subspan(3));
 }
 
-void OSDGUI::OSDCommand::configure(OSDWidget& widget, array_ref<TclObject> tokens,
-                                   unsigned skip)
+void OSDGUI::OSDCommand::configure(OSDWidget& widget, span<const TclObject> tokens)
 {
-	assert(tokens.size() >= skip);
-	if ((tokens.size() - skip) & 1) {
+	if (tokens.size() & 1) {
 		// odd number of extra arguments
 		throw CommandException(
 			"Missing value for '", tokens.back().getString(), "'.");
 	}
 
 	auto& interp = getInterpreter();
-	for (size_t i = skip; i < tokens.size(); i += 2) {
+	for (size_t i = 0; i < tokens.size(); i += 2) {
 		const auto& propName = tokens[i + 0].getString();
 		widget.setProperty(interp, propName, tokens[i + 1]);
 	}

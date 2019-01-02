@@ -95,10 +95,7 @@ class Pool {
 	using Elem = Element<Value>;
 
 public:
-	Pool()
-		: buf1_(adjust(nullptr)), freeIdx_(0), capacity_(0)
-	{
-	}
+	Pool() = default;
 
 	Pool(Pool&& source) noexcept
 		: buf1_    (source.buf1_)
@@ -214,17 +211,12 @@ private:
 	void growMore(unsigned newCapacity)
 	{
 		auto* oldBuf = buf1_ + 1;
-#if __GNUC__ <= 4
-		// only implemented starting from gcc-5
-		ReallocFunc<false> reallocFunc;
-#else
 		// Use helper functor to work around gcc-8 -Wclass-memaccess warning.
 		//  The warning triggered for the not-executed if-branch. Now
 		//  we implement that 'if' via template specialization. So only
 		//  the code path that will be executed gets instantiated. In
 		//  C++17 we can simply that by using 'if constexpr'.
 		ReallocFunc<std::is_trivially_move_constructible<Elem>::value> reallocFunc;
-#endif
 		Elem* newBuf = reallocFunc(oldBuf, capacity_, newCapacity);
 
 		for (unsigned i = capacity_; i < newCapacity - 1; ++i) {
@@ -253,9 +245,9 @@ private:
 	}
 
 private:
-	Elem* buf1_; // 1 before start of buffer -> valid indices start at 1
-	unsigned freeIdx_; // index of a free block, 0 means nothing is free
-	unsigned capacity_;
+	Elem* buf1_ = adjust(nullptr); // 1 before start of buffer -> valid indices start at 1
+	unsigned freeIdx_ = 0; // index of a free block, 0 means nothing is free
+	unsigned capacity_ = 0;
 };
 
 // Type-alias for the resulting type of applying Extractor on Value.
@@ -302,8 +294,7 @@ public:
 		using reference = IValue&;
 		using iterator_category = std::forward_iterator_tag;
 
-		Iter()
-			: hashSet(nullptr), elemIdx(0) {}
+		Iter() = default;
 
 		template<typename HashSet2, typename IValue2>
 		explicit Iter(const Iter<HashSet2, IValue2>& other)
@@ -360,8 +351,8 @@ public:
 		}
 
 	private:
-		HashSet* hashSet;
-		unsigned elemIdx;
+		HashSet* hashSet = nullptr;
+		unsigned elemIdx = 0;
 	};
 
 	using       iterator = Iter<      hash_set,       Value>;
@@ -372,15 +363,13 @@ public:
 	         Extractor extract_ = Extractor(),
 	         Hasher hasher_ = Hasher(),
 	         Equal equal_ = Equal())
-		: table(nullptr), allocMask(unsigned(-1)), elemCount(0)
-		, extract(extract_), hasher(hasher_), equal(equal_)
+		: extract(extract_), hasher(hasher_), equal(equal_)
 	{
 		reserve(initialSize); // optimized away if initialSize==0
 	}
 
 	hash_set(const hash_set& source)
-		: table(nullptr), allocMask(-1), elemCount(0)
-		, extract(source.extract), hasher(source.hasher)
+		: extract(source.extract), hasher(source.hasher)
 		, equal(source.equal)
 	{
 		if (source.elemCount == 0) return;
@@ -410,7 +399,6 @@ public:
 	}
 
 	explicit hash_set(std::initializer_list<Value> args)
-		: table(nullptr), allocMask(-1), elemCount(0)
 	{
 		reserve(args.size());
 		for (auto a : args) insert_noCapacityCheck(a); // need duplicate check??
@@ -661,10 +649,10 @@ public:
 		swap(x.equal    , y.equal);
 	}
 
-	friend       iterator begin(      hash_set& s) { return s.begin(); }
-	friend const_iterator begin(const hash_set& s) { return s.begin(); }
-	friend       iterator end  (      hash_set& s) { return s.end();   }
-	friend const_iterator end  (const hash_set& s) { return s.end();   }
+	friend auto begin(      hash_set& s) { return s.begin(); }
+	friend auto begin(const hash_set& s) { return s.begin(); }
+	friend auto end  (      hash_set& s) { return s.end();   }
+	friend auto end  (const hash_set& s) { return s.end();   }
 
 private:
 	// Returns the smallest value that is >= x that is also a power of 2.
@@ -808,10 +796,10 @@ private:
 	}
 
 private:
-	unsigned* table;
+	unsigned* table = nullptr;
 	hash_set_impl::Pool<Value> pool;
-	unsigned allocMask;
-	unsigned elemCount;
+	unsigned allocMask = unsigned(-1);
+	unsigned elemCount = 0;
 	Extractor extract;
 	Hasher hasher;
 	Equal equal;

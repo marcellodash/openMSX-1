@@ -2,6 +2,7 @@
 #define MEGAFLASHROMSCCPLUSSD_HH
 
 #include "MSXDevice.hh"
+#include "MSXMapperIO.hh"
 #include "AmdFlash.hh"
 #include "SCC.hh"
 #include "AY8910.hh"
@@ -16,7 +17,7 @@ class MegaFlashRomSCCPlusSD final : public MSXDevice
 {
 public:
 	explicit MegaFlashRomSCCPlusSD(const DeviceConfig& config);
-	~MegaFlashRomSCCPlusSD();
+	~MegaFlashRomSCCPlusSD() override;
 
 	void powerUp(EmuTime::param time) override;
 	void reset(EmuTime::param time) override;
@@ -98,7 +99,24 @@ private:
 	unsigned calcMemMapperAddress(word address) const;
 	unsigned calcAddress(word address) const;
 
+	class MapperIO final : public MSXMapperIOClient {
+	public:
+		MapperIO(MegaFlashRomSCCPlusSD& mega_)
+			: MSXMapperIOClient(mega_.getMotherBoard())
+			, mega(mega_)
+		{
+		}
+
+		byte readIO(word port, EmuTime::param time) override;
+		byte peekIO(word port, EmuTime::param time) const override;
+		void writeIO(word port, byte value, EmuTime::param time) override;
+		byte getSelectedSegment(byte page) const override;
+
+	private:
+		MegaFlashRomSCCPlusSD& mega;
+	};
 	const std::unique_ptr<CheckedRam> checkedRam; // can be nullptr
+	const std::unique_ptr<MapperIO> mapperIO; // nullptr iff checkedRam == nullptr
 	byte memMapperRegs[4];
 
 	// subslot 3

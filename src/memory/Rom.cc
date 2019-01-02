@@ -17,10 +17,11 @@
 #include "EmptyPatch.hh"
 #include "IPSPatch.hh"
 #include "StringOp.hh"
+#include "ranges.hh"
 #include "sha1.hh"
-#include "memory.hh"
-#include <limits>
 #include <cstring>
+#include <limits>
+#include <memory>
 
 using std::string;
 using std::unique_ptr;
@@ -179,12 +180,12 @@ void Rom::init(MSXMotherBoard& motherBoard, const XMLElement& config,
 				"supported.");
 		}
 		try {
-			size_t size2;
-			rom = file.mmap(size2);
-			if (size2 > std::numeric_limits<decltype(size)>::max()) {
+			auto mmap = file.mmap();
+			if (mmap.size() > std::numeric_limits<decltype(size)>::max()) {
 				throw MSXException("Rom file too big: ", file.getURL());
 			}
-			size = unsigned(size2);
+			rom = mmap.data();
+			size = unsigned(mmap.size());
 		} catch (FileException&) {
 			throw MSXException("Error reading ROM image: ", file.getURL());
 		}
@@ -227,10 +228,10 @@ void Rom::init(MSXMotherBoard& motherBoard, const XMLElement& config,
 			getOriginalSHA1();
 
 			unique_ptr<PatchInterface> patch =
-				make_unique<EmptyPatch>(rom, size);
+				std::make_unique<EmptyPatch>(rom, size);
 
 			for (auto& p : patchesElem->getChildren("ips")) {
-				patch = make_unique<IPSPatch>(
+				patch = std::make_unique<IPSPatch>(
 					Filename(p->getData(), context),
 					std::move(patch));
 			}
@@ -315,7 +316,7 @@ void Rom::init(MSXMotherBoard& motherBoard, const XMLElement& config,
 
 	// Only create the debuggable once all checks succeeded.
 	if (size) {
-		romDebuggable = make_unique<RomDebuggable>(debugger, *this);
+		romDebuggable = std::make_unique<RomDebuggable>(debugger, *this);
 	}
 }
 
@@ -326,12 +327,9 @@ bool Rom::checkSHA1(const XMLElement& config)
 		return true;
 	}
 	auto& sha1sum = getOriginalSHA1();
-	for (auto& s : sums) {
-		if (Sha1Sum(s->getData()) == sha1sum) {
-			return true;
-		}
-	}
-	return false;
+	return ranges::any_of(sums, [&](auto& s) {
+		return Sha1Sum(s->getData()) == sha1sum;
+	});
 }
 
 Rom::Rom(Rom&& r) noexcept

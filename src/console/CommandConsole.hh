@@ -98,13 +98,13 @@ private:
 	void clearCommand();
 	void backspace();
 	void delete_key();
-	void normalKey(uint16_t chr);
+	void normalKey(uint32_t chr);
 	void putCommandHistory(const std::string& command);
 	void newLineConsole(string_view line);
 	void newLineConsole(ConsoleLine line);
 	void putPrompt();
 	void resetScrollBack();
-	ConsoleLine highLight(string_view command);
+	ConsoleLine highLight(string_view line);
 
 	/** Prints a string on the console.
 	  */

@@ -19,7 +19,7 @@ class BaseSetting
 protected:
 	explicit BaseSetting(string_view name);
 	explicit BaseSetting(const TclObject& name);
-	~BaseSetting() {}
+	~BaseSetting() = default;
 
 public:
 	/** Get the name of this setting.
@@ -149,15 +149,15 @@ public:
 	 * is not immediately executed once it's set (via this method).
 	 */
 	void setChecker(std::function<void(TclObject&)> checkFunc_) {
-		checkFunc = checkFunc_;
+		checkFunc = std::move(checkFunc_);
 	}
 
 	// BaseSetting
-	void setValue(const TclObject& value) final override;
+	void setValue(const TclObject& newValue) final override;
 	string_view getDescription() const final override;
 	TclObject getDefaultValue() const final override { return defaultValue; }
 	TclObject getRestoreValue() const final override { return restoreValue; }
-	void setValueDirect(const TclObject& value) final override;
+	void setValueDirect(const TclObject& newValue) final override;
 	void tabCompletion(std::vector<std::string>& tokens) const override;
 	bool needLoadSave() const final override;
 	void additionalInfo(TclObject& result) const override;

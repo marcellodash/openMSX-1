@@ -4,7 +4,7 @@
 #include "DiskContainer.hh"
 #include "StateChangeListener.hh"
 #include "serialize_meta.hh"
-#include "array_ref.hh"
+#include "span.hh"
 #include <functional>
 #include <memory>
 #include <string>
@@ -26,12 +26,12 @@ class DiskChanger final : public DiskContainer, private StateChangeListener
 public:
 	DiskChanger(MSXMotherBoard& board,
 	            std::string driveName,
-	            bool createCommand = true,
+	            bool createCmd = true,
 	            bool doubleSidedDrive = true,
 	            std::function<void()> preChangeCallback = {});
 	DiskChanger(Reactor& reactor,
 	            std::string driveName); // for virtual_drive
-	~DiskChanger();
+	~DiskChanger() override;
 
 	void createCommand();
 
@@ -59,9 +59,9 @@ public:
 
 private:
 	void init(const std::string& prefix, bool createCmd);
-	void insertDisk(array_ref<TclObject> args);
+	void insertDisk(span<const TclObject> args);
 	void ejectDisk();
-	void sendChangeDiskEvent(array_ref<std::string> args);
+	void sendChangeDiskEvent(span<std::string> args);
 
 	// StateChangeListener
 	void signalStateChange(const std::shared_ptr<StateChange>& event) override;

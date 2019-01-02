@@ -4,13 +4,14 @@
 #include "likely.hh"
 #include "CliComm.hh"
 #include "MemoryOps.hh"
-#include "memory.hh"
+#include "ranges.hh"
 #include "stl.hh"
 #include "stringsp.hh" // for strncasecmp
-#include <algorithm>
+#include "view.hh"
 #include <cstring> // for memcpy, memcmp
 #include <cstdlib> // for atoi
 #include <cctype> // for isspace
+#include <memory>
 
 // TODO
 // - Improve error handling
@@ -237,9 +238,9 @@ OggReader::~OggReader()
 void OggReader::vorbisFoundPosition()
 {
 	auto last = vorbisPos;
-	for (auto it = audioList.rbegin(); it != audioList.rend(); ++it) {
-		last -= (*it)->length;
-		(*it)->position = last;
+	for (auto& audioFrag : view::reverse(audioList)) {
+		last -= audioFrag->length;
+		audioFrag->position = last;
 	}
 
 	// last is now the first vorbis audio decoded
@@ -361,7 +362,7 @@ void OggReader::readVorbis(ogg_packet* packet)
 	while (pos < decoded)  {
 		// Find memory to copy PCM into
 		if (recycleAudioList.empty()) {
-			auto audio = make_unique<AudioFragment>();
+			auto audio = std::make_unique<AudioFragment>();
 			audio->length = 0;
 			recycleAudioList.push_back(std::move(audio));
 		}
@@ -468,8 +469,8 @@ void OggReader::readMetadata(th_comment& tc)
 		p = strchr(p, '\n');
 		if (p) ++p;
 	}
-	sort(begin(stopFrames), end(stopFrames));
-	sort(begin(chapters  ), end(chapters  ), LessTupleElement<0>());
+	ranges::sort(stopFrames);
+	ranges::sort(chapters, LessTupleElement<0>());
 }
 
 void OggReader::readTheora(ogg_packet* packet)
@@ -568,7 +569,7 @@ void OggReader::readTheora(ogg_packet* packet)
 
 	std::unique_ptr<Frame> frame;
 	if (recycleFrameList.empty()) {
-		frame = make_unique<Frame>(yuv);
+		frame = std::make_unique<Frame>(yuv);
 	} else {
 		frame = std::move(recycleFrameList.back());
 		recycleFrameList.pop_back();
@@ -601,10 +602,9 @@ void OggReader::readTheora(ogg_packet* packet)
 	// numbers correctly
 	if (!frameList.empty() && (frameno != size_t(-1)) &&
 	    (frameList[0]->no == size_t(-1))) {
-		for (auto it = frameList.rbegin();
-		     it != frameList.rend(); ++it) {
-			frameno -= (*it)->length;
-			(*it)->no = frameno;
+		for (auto& frm : view::reverse(frameList)) {
+			frameno -= frm->length;
+			frm->no = frameno;
 		}
 	}
 
@@ -966,13 +966,12 @@ bool OggReader::seek(size_t frame, size_t samples)
 
 bool OggReader::stopFrame(size_t frame) const
 {
-	return std::binary_search(begin(stopFrames), end(stopFrames), frame);
+	return ranges::binary_search(stopFrames, frame);
 }
 
 size_t OggReader::getChapter(int chapterNo) const
 {
-	auto it = std::lower_bound(begin(chapters), end(chapters),
-	                           chapterNo, LessTupleElement<0>());
+	auto it = ranges::lower_bound(chapters, chapterNo, LessTupleElement<0>());
 	return ((it != end(chapters)) && (it->first == chapterNo))
 		? it->second : 0;
 }

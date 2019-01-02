@@ -3,10 +3,12 @@
 #include "FileContext.hh"
 #include "FileOperations.hh"
 #include "ReadDir.hh"
-#include "utf8_unchecked.hh"
+#include "ranges.hh"
+#include "stl.hh"
 #include "strCat.hh"
 #include "stringsp.hh"
-#include <algorithm>
+#include "utf8_unchecked.hh"
+#include "view.hh"
 
 using std::vector;
 using std::string;
@@ -50,9 +52,7 @@ static vector<string> format(const vector<string_view>& input, size_t columnLimi
 			return result;
 		}
 	}
-	for (auto& s : input) {
-		result.push_back(s.str());
-	}
+	append(result, view::transform(input, [](auto& s) { return s.str(); }));
 	return result;
 }
 
@@ -74,9 +74,9 @@ bool Completer::equalHead(string_view s1, string_view s2, bool caseSensitive)
 bool Completer::completeImpl(string& str, vector<string_view> matches,
                              bool caseSensitive)
 {
-	for (auto& m : matches) {
-		assert(equalHead(str, m, caseSensitive)); (void)m;
-	}
+	assert(ranges::all_of(matches, [&](auto& m) {
+		return equalHead(str, m, caseSensitive);
+	}));
 
 	if (matches.empty()) {
 		// no matching values
@@ -93,8 +93,8 @@ bool Completer::completeImpl(string& str, vector<string_view> matches,
 	//  start with. Though sometimes this is hard to avoid. E.g. when doing
 	//  filename completion + some extra allowed strings and one of these
 	//  extra strings is the same as one of the filenames.
-	sort(begin(matches), end(matches));
-	matches.erase(unique(begin(matches), end(matches)), end(matches));
+	ranges::sort(matches);
+	matches.erase(ranges::unique(matches), end(matches));
 
 	bool expanded = false;
 	while (true) {
@@ -167,9 +167,7 @@ void Completer::completeFileNameImpl(vector<string>& tokens,
 			}
 		}
 	}
-	for (auto& f : filenames) {
-		matches.emplace_back(f);
-	}
+	append(matches, filenames);
 	bool t = completeImpl(filename, matches, true);
 	if (t && !filename.empty() && (filename.back() != '/')) {
 		// completed filename, start new token

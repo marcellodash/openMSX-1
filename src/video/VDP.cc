@@ -33,10 +33,11 @@ TODO:
 #include "Reactor.hh"
 #include "MSXException.hh"
 #include "CliComm.hh"
+#include "ranges.hh"
 #include "unreachable.hh"
-#include "memory.hh"
 #include <cstring>
 #include <cassert>
+#include <memory>
 
 using std::string;
 using std::vector;
@@ -188,15 +189,15 @@ VDP::VDP(const DeviceConfig& config)
 		throw MSXException(
 			"VRAM size of ", vramSize, "kB is not supported!");
 	}
-	vram = make_unique<VDPVRAM>(*this, vramSize * 1024, time);
+	vram = std::make_unique<VDPVRAM>(*this, vramSize * 1024, time);
 
 	// Create sprite checker.
 	auto& renderSettings = display.getRenderSettings();
-	spriteChecker = make_unique<SpriteChecker>(*this, renderSettings, time);
+	spriteChecker = std::make_unique<SpriteChecker>(*this, renderSettings, time);
 	vram->setSpriteChecker(spriteChecker.get());
 
 	// Create command engine.
-	cmdEngine = make_unique<VDPCmdEngine>(*this, getCommandController());
+	cmdEngine = std::make_unique<VDPCmdEngine>(*this, getCommandController());
 	vram->setCmdEngine(cmdEngine.get());
 
 	// Initialise renderer.
@@ -246,9 +247,7 @@ void VDP::resetInit()
 {
 	// note: vram, spriteChecker, cmdEngine, renderer may not yet be
 	//       created at this point
-	for (auto& reg : controlRegs) {
-		reg = 0;
-	}
+	ranges::fill(controlRegs, 0);
 	if (isVDPwithPALonly()) {
 		// Boots (and remains) in PAL mode, all other VDPs boot in NTSC.
 		controlRegs[9] |= 0x02;
@@ -1488,7 +1487,7 @@ const std::array<std::array<uint8_t,3>,16> VDP::getMSX1Palette() const
 		tmsPalette[color][0] = Math::clipIntToByte(roundf(R));
 		tmsPalette[color][1] = Math::clipIntToByte(roundf(G));
 		tmsPalette[color][2] = Math::clipIntToByte(roundf(B));
-		// std::cerr << color << " " << int(tmsPalette[color][0]) << " " << int(tmsPalette[color][1]) <<" " << int(tmsPalette[color][2]) << std::endl;
+		// std::cerr << color << " " << int(tmsPalette[color][0]) << " " << int(tmsPalette[color][1]) <<" " << int(tmsPalette[color][2]) << '\n';
 	}
 	return tmsPalette;
 }
@@ -1603,7 +1602,7 @@ VDP::Info::Info(VDP& vdp_, const string& name_, string helpText_)
 {
 }
 
-void VDP::Info::execute(array_ref<TclObject> /*tokens*/, TclObject& result) const
+void VDP::Info::execute(span<const TclObject> /*tokens*/, TclObject& result) const
 {
 	result.setInt(calc(vdp.getCurrentTime()));
 }

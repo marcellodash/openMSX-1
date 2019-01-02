@@ -1,6 +1,7 @@
 #include "HDImageCLI.hh"
 #include "CommandLineParser.hh"
 #include "MSXException.hh"
+#include "ranges.hh"
 #include <utility>
 #include <vector>
 
@@ -18,7 +19,7 @@ HDImageCLI::HDImageCLI(CommandLineParser& parser_)
 	// TODO: offer more options in case you want to specify 2 hard disk images?
 }
 
-void HDImageCLI::parseOption(const string& option, array_ref<string>& cmdLine)
+void HDImageCLI::parseOption(const string& option, span<string>& cmdLine)
 {
 	// Machine has not been loaded yet. Only remember the image.
 	int id = option[3] - 'a';
@@ -29,8 +30,7 @@ string HDImageCLI::getImageForId(int id)
 {
 	// HD queries image. Return (and clear) the remembered value, or return
 	// an empty string.
-	auto it = std::find_if(begin(images), end(images),
-		[&](pair<int, string>& p) { return p.first == id; });
+	auto it = ranges::find_if(images, [&](auto& p) { return p.first == id; });
 	string result;
 	if (it != end(images)) {
 		result = std::move(it->second);

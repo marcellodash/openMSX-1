@@ -10,11 +10,11 @@
 #include "Reactor.hh"
 #include "MSXException.hh"
 #include "openmsx.hh"
-#include "memory.hh"
 #include "unreachable.hh"
 #include "xrange.hh"
 #include <algorithm>
 #include <cassert>
+#include <memory>
 
 #include "components.hh"
 #if COMPONENT_GL
@@ -55,6 +55,7 @@ OSDConsoleRenderer::OSDConsoleRenderer(
 		bool openGL_)
 	: Layer(COVER_NONE, Z_CONSOLE)
 	, reactor(reactor_)
+	, display(reactor.getDisplay()) // need to store because still needed during destructor
 	, console(console_)
 	, consoleSetting(console.getConsoleSetting())
 	, screenW(screenW_)
@@ -183,7 +184,7 @@ void OSDConsoleRenderer::setActive(bool active_)
 	if (active == active_) return;
 	active = active_;
 
-	reactor.getDisplay().repaintDelayed(40000); // 25 fps
+	display.repaintDelayed(40000); // 25 fps
 
 	activeTime = Timer::getTime();
 
@@ -201,14 +202,14 @@ byte OSDConsoleRenderer::getVisibility() const
 		if (dur > FADE_IN_DURATION) {
 			return 255;
 		} else {
-			reactor.getDisplay().repaintDelayed(40000); // 25 fps
+			display.repaintDelayed(40000); // 25 fps
 			return byte((dur * 255) / FADE_IN_DURATION);
 		}
 	} else {
 		if (dur > FADE_OUT_DURATION) {
 			return 0;
 		} else {
-			reactor.getDisplay().repaintDelayed(40000); // 25 fps
+			display.repaintDelayed(40000); // 25 fps
 			return byte(255 - ((dur * 255) / FADE_OUT_DURATION));
 		}
 	}
@@ -283,13 +284,18 @@ void OSDConsoleRenderer::loadBackground(string_view value)
 		backgroundImage.reset();
 		return;
 	}
+	auto* output = display.getOutputSurface();
+	if (!output) {
+		backgroundImage.reset();
+		return;
+	}
 	string filename = systemFileContext().resolve(value);
 	if (!openGL) {
-		backgroundImage = make_unique<SDLImage>(filename, bgSize);
+		backgroundImage = std::make_unique<SDLImage>(*output, filename, bgSize);
 	}
 #if COMPONENT_GL
 	else {
-		backgroundImage = make_unique<GLImage>(filename, bgSize);
+		backgroundImage = std::make_unique<GLImage>(*output, filename, bgSize);
 	}
 #endif
 }
@@ -334,11 +340,11 @@ void OSDConsoleRenderer::drawText2(OutputSurface& output, string_view text,
 		if (!surf) {
 			// nothing was rendered, so do nothing
 		} else if (!openGL) {
-			image2 = make_unique<SDLImage>(std::move(surf));
+			image2 = std::make_unique<SDLImage>(output, std::move(surf));
 		}
 #if COMPONENT_GL
 		else {
-			image2 = make_unique<GLImage>(std::move(surf));
+			image2 = std::make_unique<GLImage>(output, std::move(surf));
 		}
 #endif
 		image = image2.get();
@@ -396,8 +402,7 @@ void OSDConsoleRenderer::insertInCache(
 	static const unsigned MAX_TEXT_CACHE_SIZE = 250;
 	if (textCache.size() == MAX_TEXT_CACHE_SIZE) {
 		// flush the least recently used entry
-		auto it = end(textCache);
-		--it;
+		auto it = std::prev(std::end(textCache));
 		if (it == cacheHint) {
 			cacheHint = begin(textCache);
 		}
@@ -438,13 +443,13 @@ void OSDConsoleRenderer::paint(OutputSurface& output)
 		// no background image, try to create an empty one
 		try {
 			if (!openGL) {
-				backgroundImage = make_unique<SDLImage>(
-					bgSize, CONSOLE_ALPHA);
+				backgroundImage = std::make_unique<SDLImage>(
+					output, bgSize, CONSOLE_ALPHA);
 			}
 #if COMPONENT_GL
 			else {
-				backgroundImage = make_unique<GLImage>(
-					bgSize, CONSOLE_ALPHA);
+				backgroundImage = std::make_unique<GLImage>(
+					output, bgSize, CONSOLE_ALPHA);
 			}
 #endif
 		} catch (MSXException&) {

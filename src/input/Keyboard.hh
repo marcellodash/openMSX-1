@@ -10,7 +10,7 @@
 #include "SimpleDebuggable.hh"
 #include "EventListener.hh"
 #include "serialize_meta.hh"
-#include "array_ref.hh"
+#include "span.hh"
 #include "string_view.hh"
 #include "openmsx.hh"
 #include <array>
@@ -33,7 +33,6 @@ class TclObject;
 class Interpreter;
 
 class Keyboard final : private MSXEventListener, private StateChangeListener
-                     , private Schedulable
 {
 public:
 	enum MatrixType { MATRIX_MSX, MATRIX_SVI, MATRIX_CVJOY };
@@ -74,9 +73,6 @@ private:
 	void signalStateChange(const std::shared_ptr<StateChange>& event) override;
 	void stopReplay(EmuTime::param time) override;
 
-	// Schedulable
-	void executeUntil(EmuTime::param time) override;
-
 	void pressKeyMatrixEvent(EmuTime::param time, KeyMatrixPosition pos);
 	void releaseKeyMatrixEvent(EmuTime::param time, KeyMatrixPosition pos);
 	void changeKeyMatrixEvent (EmuTime::param time, byte row, byte newValue);
@@ -90,7 +86,7 @@ private:
 	bool processKeyEvent(EmuTime::param time, bool down, const KeyEvent& keyEvent);
 	void updateKeyMatrix(EmuTime::param time, bool down, KeyMatrixPosition pos);
 	void doKeyGhosting() const;
-	void processCmd(Interpreter& interp, array_ref<TclObject> tokens, bool up);
+	void processCmd(Interpreter& interp, span<const TclObject> tokens, bool up);
 	bool pressUnicodeByUser(
 			EmuTime::param time, UnicodeKeymap::KeyInfo keyInfo, unsigned unicode,
 			bool down);
@@ -119,7 +115,7 @@ private:
 		KeyMatrixUpCmd(CommandController& commandController,
 			       StateChangeDistributor& stateChangeDistributor,
 			       Scheduler& scheduler);
-		void execute(array_ref<TclObject> tokens, TclObject& result,
+		void execute(span<const TclObject> tokens, TclObject& result,
 			     EmuTime::param time) override;
 		std::string help(const std::vector<std::string>& tokens) const override;
 	} keyMatrixUpCmd;
@@ -128,7 +124,7 @@ private:
 		KeyMatrixDownCmd(CommandController& commandController,
 				 StateChangeDistributor& stateChangeDistributor,
 				 Scheduler& scheduler);
-		void execute(array_ref<TclObject> tokens, TclObject& result,
+		void execute(span<const TclObject> tokens, TclObject& result,
 			     EmuTime::param time) override;
 		std::string help(const std::vector<std::string>& tokens) const override;
 	} keyMatrixDownCmd;
@@ -146,7 +142,7 @@ private:
 		void reschedule(EmuTime::param time);
 
 		// Command
-		void execute(array_ref<TclObject> tokens, TclObject& result,
+		void execute(span<const TclObject> tokens, TclObject& result,
 			     EmuTime::param time) override;
 		std::string help(const std::vector<std::string>& tokens) const override;
 		void tabCompletion(std::vector<std::string>& tokens) const override;
@@ -237,7 +233,6 @@ private:
 	  * numbering) is set iff it is a lock key.
 	  */
 	const byte modifierIsLock;
-	const bool sdlReleasesCapslock;
 	mutable bool keysChanged;
 	/** Bit vector where each modifier's bit (using KeyInfo::Modifier's
 	  * numbering) is set iff it is a lock key that is currently on in

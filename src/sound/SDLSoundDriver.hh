@@ -2,6 +2,7 @@
 #define SDLSOUNDDRIVER_HH
 
 #include "SoundDriver.hh"
+#include "SDLSurfacePtr.hh"
 #include "MemBuffer.hh"
 #include "openmsx.hh"
 
@@ -15,9 +16,8 @@ public:
 	SDLSoundDriver(const SDLSoundDriver&) = delete;
 	SDLSoundDriver& operator=(const SDLSoundDriver&) = delete;
 
-	SDLSoundDriver(Reactor& reactor,
-	               unsigned frequency, unsigned samples);
-	~SDLSoundDriver();
+	SDLSoundDriver(Reactor& reactor, unsigned wantedFreq, unsigned samples);
+	~SDLSoundDriver() override;
 
 	void mute() override;
 	void unmute() override;
@@ -41,6 +41,7 @@ private:
 	unsigned fragmentSize;
 	unsigned readIdx, writeIdx;
 	bool muted;
+	SDLSubSystemInitializer<SDL_INIT_AUDIO> audioInitializer;
 };
 
 } // namespace openmsx

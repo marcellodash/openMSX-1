@@ -212,8 +212,8 @@ ConsoleLine CommandConsole::getLine(unsigned line) const
 
 int CommandConsole::signalEvent(const std::shared_ptr<const Event>& event)
 {
-	auto& keyEvent = checked_cast<const KeyEvent&>(*event);
 	if (!consoleSetting.getBoolean()) return 0;
+	auto& keyEvent = checked_cast<const KeyEvent&>(*event);
 
 	// If the console is open then don't pass the event to the MSX
 	// (whetever the (keyboard) event is). If the event has a meaning for
@@ -321,7 +321,7 @@ bool CommandConsole::handleEvent(const KeyEvent& keyEvent)
 		break;
 	}
 
-	uint16_t unicode = keyEvent.getUnicode();
+	auto unicode = keyEvent.getUnicode();
 	if (!unicode || (mod & Keys::KM_META)) {
 		// Disallow META modifer for 'normal' key presses because on
 		// MacOSX Cmd+L is used as a hotkey to toggle the console.
@@ -335,6 +335,17 @@ bool CommandConsole::handleEvent(const KeyEvent& keyEvent)
 		// Event was not used by the console, allow the other
 		// subsystems to process it. E.g. F10, or Cmd+L to close the
 		// console.
+		return false;
+	}
+
+	// Apparently on macOS keyboard events for keys like F1 have a non-zero
+	// unicode field. This confuses the console code (it thinks it's a
+	// printable character) and it prevents those keys from triggering
+	// hotkey bindings. See this bug report:
+	//   https://github.com/openMSX/openMSX/issues/1095
+	// As a workaround we ignore chars in the 'Private Use Area' (PUA).
+	//   https://en.wikipedia.org/wiki/Private_Use_Areas
+	if (utf8::is_pua(unicode)) {
 		return false;
 	}
 
@@ -404,10 +415,10 @@ void CommandConsole::commandExecute()
 	strAppend(commandBuffer, cmd0, '\n');
 	newLineConsole(lines[0]);
 	if (commandController.isComplete(commandBuffer)) {
-		// Normally the busy promt is NOT shown (not even very briefly
+		// Normally the busy prompt is NOT shown (not even very briefly
 		// because the screen is not redrawn), though for some commands
 		// that potentially take a long time to execute, we explictly
-		// send events, see also comment in handleEvent().
+		// send events, see also comment in signalEvent().
 		prompt = PROMPT_BUSY;
 		putPrompt();
 
@@ -473,7 +484,7 @@ void CommandConsole::putPrompt()
 void CommandConsole::tabCompletion()
 {
 	resetScrollBack();
-	unsigned pl = unsigned(prompt.size());
+	auto pl = unsigned(prompt.size());
 	string front = utf8::unchecked::substr(lines[0].str(), pl, cursorPosition - pl).str();
 	string back  = utf8::unchecked::substr(lines[0].str(), cursorPosition).str();
 	string newFront = commandController.tabCompletion(front);
@@ -570,14 +581,14 @@ void CommandConsole::delete_key()
 	}
 }
 
-void CommandConsole::normalKey(uint16_t chr)
+void CommandConsole::normalKey(uint32_t chr)
 {
 	assert(chr);
 	resetScrollBack();
 	currentLine = lines[0].str();
 	auto pos = begin(currentLine);
 	utf8::unchecked::advance(pos, cursorPosition);
-	utf8::unchecked::append(uint32_t(chr), inserter(currentLine, pos));
+	utf8::unchecked::append(chr, inserter(currentLine, pos));
 	currentLine.erase(0, prompt.size());
 	lines[0] = highLight(currentLine);
 	++cursorPosition;

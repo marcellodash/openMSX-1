@@ -9,13 +9,12 @@
 #include "FileOperations.hh"
 #include "CommandException.hh"
 #include "TclObject.hh"
-#include "array_ref.hh"
-#include "memory.hh"
+#include "span.hh"
 #include "unreachable.hh"
 #include <cassert>
+#include <memory>
 
 using std::unique_ptr;
-using std::set;
 using std::string;
 using std::vector;
 
@@ -32,7 +31,7 @@ NowindCommand::NowindCommand(const string& basename,
 unique_ptr<DiskChanger> NowindCommand::createDiskChanger(
 	const string& basename, unsigned n, MSXMotherBoard& motherBoard) const
 {
-	return make_unique<DiskChanger>(
+	return std::make_unique<DiskChanger>(
 			motherBoard,
 			strCat(basename, n + 1),
 			false, true);
@@ -58,7 +57,7 @@ void NowindCommand::processHdimage(
 	// Though <filename> itself can contain ':' characters. To solve this
 	// disambiguity we will always interpret the string as <filename> if
 	// it is an existing filename.
-	set<unsigned> partitions;
+	vector<unsigned> partitions;
 	auto pos = hdimage.find_last_of(':');
 	if ((pos != string::npos) && !FileOperations::exists(hdimage)) {
 		partitions = StringOp::parseRange(
@@ -71,7 +70,7 @@ void NowindCommand::processHdimage(
 		// insert all partitions
 		failOnError = false;
 		for (unsigned i = 1; i <= 31; ++i) {
-			partitions.insert(i);
+			partitions.push_back(i);
 		}
 	}
 
@@ -80,7 +79,7 @@ void NowindCommand::processHdimage(
 			// Explicit conversion to shared_ptr<SectorAccessibleDisk> is
 			// for some reason needed in 32-bit vs2013 build (not in 64-bit
 			// and not in vs2012, nor gcc/clang). Compiler bug???
-			auto partition = make_unique<DiskPartition>(
+			auto partition = std::make_unique<DiskPartition>(
 				*wholeDisk, p,
 				std::shared_ptr<SectorAccessibleDisk>(wholeDisk));
 			auto drive = createDiskChanger(
@@ -94,7 +93,7 @@ void NowindCommand::processHdimage(
 	}
 }
 
-void NowindCommand::execute(array_ref<TclObject> tokens, TclObject& result)
+void NowindCommand::execute(span<const TclObject> tokens, TclObject& result)
 {
 	auto& host = interface.host;
 	auto& drives = interface.drives;
@@ -138,13 +137,13 @@ void NowindCommand::execute(array_ref<TclObject> tokens, TclObject& result)
 	string error;
 
 	// actually parse the commandline
-	array_ref<TclObject> args(&tokens[1], tokens.size() - 1);
+	span<const TclObject> args(&tokens[1], tokens.size() - 1);
 	while (error.empty() && !args.empty()) {
 		bool createDrive = false;
 		string_view image;
 
 		string_view arg = args.front().getString();
-		args.pop_front();
+		args = args.subspan(1);
 		if        ((arg == "--ctrl")    || (arg == "-c")) {
 			enablePhantom  = false;
 			disablePhantom = true;
@@ -163,7 +162,7 @@ void NowindCommand::execute(array_ref<TclObject> tokens, TclObject& result)
 				error = "Can only have one romdisk";
 			} else {
 				romdisk = unsigned(tmpDrives.size());
-				tmpDrives.push_back(make_unique<NowindRomDisk>());
+				tmpDrives.push_back(std::make_unique<NowindRomDisk>());
 				changeDrives = true;
 			}
 
@@ -172,7 +171,7 @@ void NowindCommand::execute(array_ref<TclObject> tokens, TclObject& result)
 				error = strCat("Missing argument for option: ", arg);
 			} else {
 				image = args.front().getString();
-				args.pop_front();
+				args = args.subspan(1);
 				createDrive = true;
 			}
 
@@ -182,11 +181,11 @@ void NowindCommand::execute(array_ref<TclObject> tokens, TclObject& result)
 			} else {
 				try {
 					string_view hdimage = args.front().getString();
-					args.pop_front();
+					args = args.subspan(1);
 					processHdimage(hdimage, tmpDrives);
 					changeDrives = true;
 				} catch (MSXException& e) {
-					error = e.getMessage();
+					error = std::move(e).getMessage();
 				}
 			}
 

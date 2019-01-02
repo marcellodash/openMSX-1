@@ -30,7 +30,7 @@ class Filename;
 class LocalFileReference
 {
 public:
-	LocalFileReference() {}
+	LocalFileReference() = default;
 	explicit LocalFileReference(const Filename& filename);
 	explicit LocalFileReference(const std::string& url);
 	explicit LocalFileReference(File& file);
@@ -47,7 +47,6 @@ public:
 	const std::string getFilename() const;
 
 private:
-	void init(const std::string& url);
 	void init(File& url);
 
 	std::string tmpFile;

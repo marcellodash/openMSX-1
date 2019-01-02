@@ -5,6 +5,7 @@
 #include "TclObject.hh"
 #include "Interpreter.hh"
 #include "Reactor.hh"
+#include "RealTime.hh"
 #include "MSXMotherBoard.hh"
 #include "MSXCPU.hh"
 #include "VDPIODelay.hh"
@@ -21,15 +22,15 @@
 #include "ReadOnlySetting.hh"
 #include "serialize.hh"
 #include "checked_cast.hh"
-#include "memory.hh"
 #include "outer.hh"
+#include "ranges.hh"
 #include "stl.hh"
 #include "unreachable.hh"
-#include <iomanip>
-#include <algorithm>
-#include <iostream>
 #include <cstring>
+#include <iomanip>
+#include <iostream>
 #include <iterator>
+#include <memory>
 
 using std::string;
 using std::vector;
@@ -72,23 +73,19 @@ MSXCPUInterface::MSXCPUInterface(MSXMotherBoard& motherBoard_)
 	, motherBoard(motherBoard_)
 	, fastForward(false)
 {
-	for (int port = 0; port < 256; ++port) {
-		IO_In [port] = dummyDevice.get();
-		IO_Out[port] = dummyDevice.get();
-	}
+	ranges::fill(primarySlotState, 0);
+	ranges::fill(secondarySlotState, 0);
+	ranges::fill(expanded, 0);
+	ranges::fill(subSlotRegister, 0);
+	ranges::fill(IO_In,  dummyDevice.get());
+	ranges::fill(IO_Out, dummyDevice.get());
+	ranges::fill(visibleDevices, dummyDevice.get());
 	for (int primSlot = 0; primSlot < 4; ++primSlot) {
-		primarySlotState[primSlot] = 0;
-		secondarySlotState[primSlot] = 0;
-		expanded[primSlot] = 0;
-		subSlotRegister[primSlot] = 0;
 		for (int secSlot = 0; secSlot < 4; ++secSlot) {
 			for (int page = 0; page < 4; ++page) {
 				slotLayout[primSlot][secSlot][page] = dummyDevice.get();
 			}
 		}
-	}
-	for (auto& dev : visibleDevices) {
-		dev = dummyDevice.get();
 	}
 
 	// initially allow all regions to be cached
@@ -114,7 +111,7 @@ MSXCPUInterface::MSXCPUInterface(MSXMotherBoard& motherBoard_)
 
 	if (breakedSettingCount++ == 0) {
 		assert(!breakedSetting);
-		breakedSetting = make_unique<ReadOnlySetting>(
+		breakedSetting = std::make_unique<ReadOnlySetting>(
 			motherBoard.getReactor().getCommandController(),
 			"breaked", "Similar to 'debug breaked'",
 			TclObject("false"));
@@ -146,12 +143,12 @@ MSXCPUInterface::~MSXCPUInterface()
 	for (int port = 0; port < 256; ++port) {
 		if (IO_In[port] != dummyDevice.get()) {
 			std::cout << "In-port " << port << " still registered "
-			          << IO_In[port]->getName() << std::endl;
+			          << IO_In[port]->getName() << '\n';
 			UNREACHABLE;
 		}
 		if (IO_Out[port] != dummyDevice.get()) {
 			std::cout << "Out-port " << port << " still registered "
-			          << IO_Out[port]->getName() << std::endl;
+			          << IO_Out[port]->getName() << '\n';
 			UNREACHABLE;
 		}
 	}
@@ -246,7 +243,7 @@ void MSXCPUInterface::testUnsetExpanded(
 {
 	// TODO handle multi-devices
 	allowed.push_back(dummyDevice.get());
-	sort(begin(allowed), end(allowed)); // for set_difference()
+	ranges::sort(allowed); // for set_difference()
 	assert(isExpanded(ps));
 	if (expanded[ps] != 1) return; // ok, still expanded after this
 
@@ -258,8 +255,8 @@ void MSXCPUInterface::testUnsetExpanded(
 			std::vector<MSXDevice*>::iterator end_devices;
 			if (auto memDev = dynamic_cast<MSXMultiMemDevice*>(device)) {
 				devices = memDev->getDevices();
-				sort(begin(devices), end(devices)); // for set_difference()
-				end_devices = unique(begin(devices), end(devices));
+				ranges::sort(devices); // for set_difference()
+				end_devices = ranges::unique(devices);
 			} else {
 				devices.push_back(device);
 				end_devices = end(devices);
@@ -733,15 +730,13 @@ void MSXCPUInterface::writeSlottedMem(unsigned address, byte value,
 
 void MSXCPUInterface::insertBreakPoint(const BreakPoint& bp)
 {
-	auto it = upper_bound(begin(breakPoints), end(breakPoints),
-	                      bp, CompareBreakpoints());
+	auto it = ranges::upper_bound(breakPoints, bp, CompareBreakpoints());
 	breakPoints.insert(it, bp);
 }
 
 void MSXCPUInterface::removeBreakPoint(const BreakPoint& bp)
 {
-	auto range = equal_range(begin(breakPoints), end(breakPoints),
-	                         bp.getAddress(), CompareBreakpoints());
+	auto range = ranges::equal_range(breakPoints, bp.getAddress(), CompareBreakpoints());
 	breakPoints.erase(find_if_unguarded(range.first, range.second,
 		[&](const BreakPoint& i) { return &i == &bp; }));
 }
@@ -792,26 +787,24 @@ void MSXCPUInterface::removeWatchPoint(shared_ptr<WatchPoint> watchPoint)
 	// Pass shared_ptr by value to keep the object alive for the duration
 	// of this function, otherwise it gets deleted as soon as it's removed
 	// from the watchPoints collection.
-	for (auto it = begin(watchPoints); it != end(watchPoints); ++it) {
-		if (*it == watchPoint) {
-			// remove before calling updateMemWatch()
-			watchPoints.erase(it);
-			WatchPoint::Type type = watchPoint->getType();
-			switch (type) {
-			case WatchPoint::READ_IO:
-				unregisterIOWatch(*watchPoint, IO_In);
-				break;
-			case WatchPoint::WRITE_IO:
-				unregisterIOWatch(*watchPoint, IO_Out);
-				break;
-			case WatchPoint::READ_MEM:
-			case WatchPoint::WRITE_MEM:
-				updateMemWatch(type);
-				break;
-			default:
-				UNREACHABLE; break;
-			}
+	auto it = ranges::find(watchPoints, watchPoint);
+	if (it != end(watchPoints)) {
+		// remove before calling updateMemWatch()
+		watchPoints.erase(it);
+		WatchPoint::Type type = watchPoint->getType();
+		switch (type) {
+		case WatchPoint::READ_IO:
+			unregisterIOWatch(*watchPoint, IO_In);
 			break;
+		case WatchPoint::WRITE_IO:
+			unregisterIOWatch(*watchPoint, IO_Out);
+			break;
+		case WatchPoint::READ_MEM:
+		case WatchPoint::WRITE_MEM:
+			updateMemWatch(type);
+			break;
+		default:
+			UNREACHABLE; break;
 		}
 	}
 }
@@ -964,6 +957,7 @@ void MSXCPUInterface::doContinue2()
 	breakedSetting->setReadOnlyValue(TclObject("false"));
 	reactor.getCliComm().update(CliComm::STATUS, "cpu", "running");
 	reactor.unblock();
+	motherBoard.getRealTime().resync();
 }
 
 void MSXCPUInterface::cleanup()
@@ -1041,7 +1035,7 @@ MSXCPUInterface::SlotInfo::SlotInfo(
 {
 }
 
-void MSXCPUInterface::SlotInfo::execute(array_ref<TclObject> tokens,
+void MSXCPUInterface::SlotInfo::execute(span<const TclObject> tokens,
                        TclObject& result) const
 {
 	if (tokens.size() != 5) {
@@ -1073,7 +1067,7 @@ MSXCPUInterface::SubSlottedInfo::SubSlottedInfo(
 {
 }
 
-void MSXCPUInterface::SubSlottedInfo::execute(array_ref<TclObject> tokens,
+void MSXCPUInterface::SubSlottedInfo::execute(span<const TclObject> tokens,
                              TclObject& result) const
 {
 	if (tokens.size() != 3) {
@@ -1100,7 +1094,7 @@ MSXCPUInterface::ExternalSlotInfo::ExternalSlotInfo(
 }
 
 void MSXCPUInterface::ExternalSlotInfo::execute(
-	array_ref<TclObject> tokens, TclObject& result) const
+	span<const TclObject> tokens, TclObject& result) const
 {
 	int ps = 0;
 	int ss = 0;
@@ -1155,7 +1149,7 @@ MSXCPUInterface::IOInfo::IOInfo(InfoCommand& machineInfoCommand, const char* nam
 }
 
 void MSXCPUInterface::IOInfo::helper(
-	array_ref<TclObject> tokens, TclObject& result, MSXDevice** devices) const
+	span<const TclObject> tokens, TclObject& result, MSXDevice** devices) const
 {
 	if (tokens.size() != 3) {
 		throw SyntaxError();
@@ -1167,13 +1161,13 @@ void MSXCPUInterface::IOInfo::helper(
 	result.setString(devices[port]->getName());
 }
 void MSXCPUInterface::IInfo::execute(
-	array_ref<TclObject> tokens, TclObject& result) const
+	span<const TclObject> tokens, TclObject& result) const
 {
 	auto& interface = OUTER(MSXCPUInterface, inputPortInfo);
 	helper(tokens, result, interface.IO_In);
 }
 void MSXCPUInterface::OInfo::execute(
-	array_ref<TclObject> tokens, TclObject& result) const
+	span<const TclObject> tokens, TclObject& result) const
 {
 	auto& interface = OUTER(MSXCPUInterface, outputPortInfo);
 	helper(tokens, result, interface.IO_Out);

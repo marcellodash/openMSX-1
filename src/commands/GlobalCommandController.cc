@@ -10,13 +10,15 @@
 #include "SettingsManager.hh"
 #include "TclObject.hh"
 #include "Version.hh"
-#include "KeyRange.hh"
 #include "ScopedAssign.hh"
 #include "checked_cast.hh"
-#include "memory.hh"
 #include "outer.hh"
+#include "ranges.hh"
+#include "stl.hh"
+#include "view.hh"
 #include "xrange.hh"
 #include <cassert>
+#include <memory>
 
 using std::string;
 using std::vector;
@@ -29,7 +31,6 @@ GlobalCommandController::GlobalCommandController(
 	: cliComm(cliComm_)
 	, connection(nullptr)
 	, reactor(reactor_)
-	, interpreter(eventDistributor)
 	, openMSXInfoCommand(*this, "openmsx_info")
 	, hotKey(reactor.getRTScheduler(), *this, eventDistributor)
 	, settingsConfig(*this, hotKey)
@@ -57,7 +58,7 @@ void GlobalCommandController::registerProxyCommand(const string& name)
 	auto it = proxyCommandMap.find(name);
 	if (it == end(proxyCommandMap)) {
 		it = proxyCommandMap.emplace_noDuplicateCheck(
-			0, make_unique<ProxyCmd>(reactor, name));
+			0, std::make_unique<ProxyCmd>(reactor, name));
 	}
 	++it->first;
 }
@@ -76,8 +77,9 @@ void GlobalCommandController::unregisterProxyCommand(string_view name)
 GlobalCommandController::ProxySettings::iterator
 GlobalCommandController::findProxySetting(string_view name)
 {
-	return find_if(begin(proxySettings), end(proxySettings),
-		[&](ProxySettings::value_type& v) { return v.first->getFullName() == name; });
+	return ranges::find_if(proxySettings, [&](auto& v) {
+		return v.first->getFullName() == name;
+	});
 }
 
 void GlobalCommandController::registerProxySetting(Setting& setting)
@@ -86,7 +88,7 @@ void GlobalCommandController::registerProxySetting(Setting& setting)
 	auto it = findProxySetting(name.getString());
 	if (it == end(proxySettings)) {
 		// first occurrence
-		auto proxy = make_unique<ProxySetting>(reactor, name);
+		auto proxy = std::make_unique<ProxySetting>(reactor, name);
 		getSettingsManager().registerSetting(*proxy);
 		getInterpreter().registerSetting(*proxy);
 		proxySettings.emplace_back(std::move(proxy), 1);
@@ -168,7 +170,7 @@ void GlobalCommandController::unregisterSetting(Setting& setting)
 
 bool GlobalCommandController::hasCommand(string_view command) const
 {
-	return commands.find(command) != end(commands);
+	return commands.contains(command);
 }
 
 void GlobalCommandController::split(string_view str, vector<string>& tokens,
@@ -309,10 +311,10 @@ bool GlobalCommandController::isComplete(const string& command)
 }
 
 TclObject GlobalCommandController::executeCommand(
-	const string& cmd, CliConnection* connection_)
+	const string& command, CliConnection* connection_)
 {
 	ScopedAssign<CliConnection*> sa(connection, connection_);
-	return interpreter.execute(cmd);
+	return interpreter.execute(command);
 }
 
 void GlobalCommandController::source(const string& script)
@@ -409,9 +411,8 @@ void GlobalCommandController::tabCompletion(vector<string>& tokens)
 		string_view cmd = tokens.front();
 		if (cmd.starts_with("::")) cmd.remove_prefix(2); // drop leading ::
 
-		auto it = commandCompleters.find(cmd);
-		if (it != end(commandCompleters)) {
-			it->second->tabCompletion(tokens);
+		if (auto v = lookup(commandCompleters, cmd)) {
+			(*v)->tabCompletion(tokens);
 		} else {
 			TclObject command;
 			command.addListElement("openmsx::tabcompletion");
@@ -451,7 +452,7 @@ GlobalCommandController::HelpCmd::HelpCmd(GlobalCommandController& controller_)
 }
 
 void GlobalCommandController::HelpCmd::execute(
-	array_ref<TclObject> tokens, TclObject& result)
+	span<const TclObject> tokens, TclObject& result)
 {
 	auto& controller = OUTER(GlobalCommandController, helpCmd);
 	switch (tokens.size()) {
@@ -459,9 +460,9 @@ void GlobalCommandController::HelpCmd::execute(
 		string text =
 			"Use 'help [command]' to get help for a specific command\n"
 			"The following commands exist:\n";
-		const auto& k = keys(controller.commandCompleters);
-		vector<string_view> cmds(begin(k), end(k));
-		std::sort(begin(cmds), end(cmds));
+		auto cmds = to_vector<string_view>(
+			view::keys(controller.commandCompleters));
+		ranges::sort(cmds);
 		for (auto& line : formatListInColumns(cmds)) {
 			strAppend(text, line, '\n');
 		}
@@ -469,18 +470,15 @@ void GlobalCommandController::HelpCmd::execute(
 		break;
 	}
 	default: {
-		auto it = controller.commandCompleters.find(tokens[1].getString());
-		if (it != end(controller.commandCompleters)) {
-			vector<string> tokens2;
-			auto it2 = std::begin(tokens);
-			for (++it2; it2 != std::end(tokens); ++it2) {
-				tokens2.push_back(it2->getString().str());
-			}
-			result.setString(it->second->help(tokens2));
+		if (auto v = lookup(controller.commandCompleters, tokens[1].getString())) {
+			auto tokens2 = to_vector(view::transform(
+				view::drop(tokens, 1),
+				[](auto& t) { return t.getString().str(); }));
+			result.setString((*v)->help(tokens2));
 		} else {
 			TclObject command;
 			command.addListElement("openmsx::help");
-			command.addListElements(std::begin(tokens) + 1, std::end(tokens));
+			command.addListElements(view::drop(tokens, 1));
 			result = command.executeCommand(getInterpreter());
 		}
 		break;
@@ -512,7 +510,7 @@ GlobalCommandController::TabCompletionCmd::TabCompletionCmd(
 }
 
 void GlobalCommandController::TabCompletionCmd::execute(
-	array_ref<TclObject> tokens, TclObject& result)
+	span<const TclObject> tokens, TclObject& result)
 {
 	switch (tokens.size()) {
 	case 2: {
@@ -564,7 +562,7 @@ CliConnection& GlobalCommandController::UpdateCmd::getConnection()
 }
 
 void GlobalCommandController::UpdateCmd::execute(
-	array_ref<TclObject> tokens, TclObject& /*result*/)
+	span<const TclObject> tokens, TclObject& /*result*/)
 {
 	if (tokens.size() != 3) {
 		throw SyntaxError();
@@ -607,7 +605,7 @@ GlobalCommandController::PlatformInfo::PlatformInfo(InfoCommand& openMSXInfoComm
 }
 
 void GlobalCommandController::PlatformInfo::execute(
-	array_ref<TclObject> /*tokens*/, TclObject& result) const
+	span<const TclObject> /*tokens*/, TclObject& result) const
 {
 	result.setString(TARGET_PLATFORM);
 }
@@ -625,7 +623,7 @@ GlobalCommandController::VersionInfo::VersionInfo(InfoCommand& openMSXInfoComman
 }
 
 void GlobalCommandController::VersionInfo::execute(
-	array_ref<TclObject> /*tokens*/, TclObject& result) const
+	span<const TclObject> /*tokens*/, TclObject& result) const
 {
 	result.setString(Version::full());
 }

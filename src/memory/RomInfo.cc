@@ -1,10 +1,10 @@
 #include "RomInfo.hh"
 #include "StringOp.hh"
 #include "hash_map.hh"
+#include "ranges.hh"
 #include "stl.hh"
 #include "unreachable.hh"
 #include "xxhash.hh"
-#include <algorithm>
 #include <cassert>
 
 using std::vector;
@@ -168,7 +168,7 @@ static void init()
 	initAlias(ROM_ZEMINA126IN1,"KOREAN126IN1");
 	initAlias(ROM_HOLY_QURAN,  "HolyQuran");
 
-	sort(begin(romTypeInfoMap), end(romTypeInfoMap), RomTypeInfoMapLess());
+	ranges::sort(romTypeInfoMap, RomTypeInfoMapLess());
 }
 static const RomTypeMap& getRomTypeMap()
 {
@@ -183,9 +183,8 @@ static const RomTypeInfoMap& getRomTypeInfoMap()
 
 RomType RomInfo::nameToRomType(string_view name)
 {
-	auto& m = getRomTypeMap();
-	auto it = m.find(name);
-	return (it != end(m)) ? removeAlias(it->second) : ROM_UNKNOWN;
+	auto v = lookup(getRomTypeMap(), name);
+	return v ? removeAlias(*v) : ROM_UNKNOWN;
 }
 
 string_view RomInfo::romTypeToName(RomType type)
@@ -213,7 +212,7 @@ vector<string_view> RomInfo::getAllRomTypes()
 string_view RomInfo::getDescription(RomType type)
 {
 	auto& m = getRomTypeInfoMap();
-	auto it = lower_bound(begin(m), end(m), type, RomTypeInfoMapLess());
+	auto it = ranges::lower_bound(m, type, RomTypeInfoMapLess());
 	assert(it != end(m));
 	assert(std::get<0>(*it) == type);
 	return std::get<1>(*it);
@@ -222,7 +221,7 @@ string_view RomInfo::getDescription(RomType type)
 unsigned RomInfo::getBlockSize(RomType type)
 {
 	auto& m = getRomTypeInfoMap();
-	auto it = lower_bound(begin(m), end(m), type, RomTypeInfoMapLess());
+	auto it = ranges::lower_bound(m, type, RomTypeInfoMapLess());
 	assert(it != end(m));
 	assert(std::get<0>(*it) == type);
 	return std::get<2>(*it);

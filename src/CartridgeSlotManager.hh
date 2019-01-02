@@ -49,11 +49,11 @@ private:
 	public:
 		CartCmd(CartridgeSlotManager& manager, MSXMotherBoard& motherBoard,
 			string_view commandName);
-		void execute(array_ref<TclObject> tokens, TclObject& result,
+		void execute(span<const TclObject> tokens, TclObject& result,
 			     EmuTime::param time) override;
 		std::string help(const std::vector<std::string>& tokens) const override;
 		void tabCompletion(std::vector<std::string>& tokens) const override;
-		bool needRecord(array_ref<TclObject> tokens) const override;
+		bool needRecord(span<const TclObject> tokens) const override;
 	private:
 		const HardwareConfig* getExtensionConfig(string_view cartname);
 		CartridgeSlotManager& manager;
@@ -62,23 +62,22 @@ private:
 
 	struct CartridgeSlotInfo final : InfoTopic {
 		explicit CartridgeSlotInfo(InfoCommand& machineInfoCommand);
-		void execute(array_ref<TclObject> tokens,
+		void execute(span<const TclObject> tokens,
 			     TclObject& result) const override;
 		std::string help(const std::vector<std::string>& tokens) const override;
 	} extSlotInfo;
 
 	struct Slot {
-		Slot();
 		~Slot();
 		bool exists() const;
 		bool used(const HardwareConfig* allowed = nullptr) const;
 
 		std::unique_ptr<CartCmd> cartCommand;
 		std::unique_ptr<ExtCmd> extCommand;
-		const HardwareConfig* config;
-		unsigned useCount;
-		int ps;
-		int ss;
+		const HardwareConfig* config = nullptr;
+		unsigned useCount = 0;
+		int ps = 0;
+		int ss = 0;
 	};
 	static const unsigned MAX_SLOTS = 16 + 4;
 	Slot slots[MAX_SLOTS];

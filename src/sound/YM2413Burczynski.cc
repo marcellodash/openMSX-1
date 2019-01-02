@@ -218,7 +218,7 @@ static constexpr int TL_TAB_LEN = 11 * 2 * TL_RES_LEN;
 struct TlTab {
 	int tab[TL_TAB_LEN];
 };
-static CONSTEXPR TlTab makeTlTab()
+static constexpr TlTab makeTlTab()
 {
 	TlTab tl = {};
 	for (int x = 0; x < TL_RES_LEN; ++x) {
@@ -237,14 +237,14 @@ static CONSTEXPR TlTab makeTlTab()
 	}
 	return tl;
 }
-static CONSTEXPR TlTab tl = makeTlTab();
+static constexpr TlTab tl = makeTlTab();
 
 // sin waveform table in 'decibel' scale
 // two waveforms on OPLL type chips
 struct SinTab {
 	unsigned tab[SIN_LEN * 2];
 };
-static CONSTEXPR SinTab makeSinTab()
+static constexpr SinTab makeSinTab()
 {
 	SinTab sin = {};
 	for (int i = 0; i < SIN_LEN / 4; ++i) {
@@ -268,7 +268,7 @@ static CONSTEXPR SinTab makeSinTab()
 	}
 	return sin;
 }
-static CONSTEXPR SinTab sin = makeSinTab();
+static constexpr SinTab sin = makeSinTab();
 
 // LFO Amplitude Modulation table (verified on real YM3812)
 // 27 output levels (triangle waveform);
@@ -938,7 +938,7 @@ void Channel::updateInstrument(const byte* inst)
 YM2413::YM2413()
 	: lfo_am_cnt(0), lfo_pm_cnt(0)
 {
-	if (0) {
+	if (false) {
 		for (auto& e : tl.tab) std::cout << e << '\n';
 		std::cout << '\n';
 		for (auto& e : sin.tab) std::cout << e << '\n';

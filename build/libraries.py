@@ -172,9 +172,15 @@ class FreeType(Library):
 			if distroRoot == '/usr/local':
 				# FreeType is located in the X11 tree, not the ports tree.
 				distroRoot = '/usr/X11R6'
-		return super(FreeType, cls).getConfigScript(
+		script = super(FreeType, cls).getConfigScript(
 			platform, linkStatic, distroRoot
 			)
+		if isfile(script):
+			return script
+		else:
+			# FreeType 2.9.1 no longer installs the freetype-config script
+			# by default and expects pkg-config to be used instead.
+			return 'pkg-config freetype2'
 
 	@classmethod
 	def getVersion(cls, platform, linkStatic, distroRoot):
@@ -285,34 +291,24 @@ class OGG(Library):
 	def isSystemLibrary(cls, platform):
 		return platform in ('dingux',)
 
-class SDL(Library):
-	libName = 'SDL'
-	makeName = 'SDL'
+class SDL2(Library):
+	libName = 'SDL2'
+	makeName = 'SDL2'
 	header = '<SDL.h>'
-	configScriptName = 'sdl-config'
+	configScriptName = 'sdl2-config'
 	staticLibsOption = '--static-libs'
 	function = 'SDL_Init'
 
 	@classmethod
 	def isSystemLibrary(cls, platform):
-		return platform in ('android', 'dingux')
+		return platform in ('dingux',)
 
-	@classmethod
-	def getConfigScript(cls, platform, linkStatic, distroRoot):
-		if platform == 'android':
-			return environ['SDL_ANDROID_PORT_PATH'] \
-				+ '/project/jni/application/sdl-config'
-		else:
-			return super(SDL, cls).getConfigScript(
-				platform, linkStatic, distroRoot
-				)
-
-class SDL_ttf(Library):
-	libName = 'SDL_ttf'
-	makeName = 'SDL_TTF'
+class SDL2_ttf(Library):
+	libName = 'SDL2_ttf'
+	makeName = 'SDL2_TTF'
 	header = '<SDL_ttf.h>'
 	function = 'TTF_OpenFont'
-	dependsOn = ('SDL', 'FREETYPE')
+	dependsOn = ('SDL2', 'FREETYPE')
 
 	@classmethod
 	def isSystemLibrary(cls, platform):
@@ -320,24 +316,13 @@ class SDL_ttf(Library):
 
 	@classmethod
 	def getLinkFlags(cls, platform, linkStatic, distroRoot):
-		flags = super(SDL_ttf, cls).getLinkFlags(
+		flags = super(SDL2_ttf, cls).getLinkFlags(
 			platform, linkStatic, distroRoot
 			)
 		if not linkStatic:
 			# Because of the SDLmain trickery, we need SDL's link flags too
 			# on some platforms even though we're linking dynamically.
-			flags += ' ' + SDL.getLinkFlags(platform, linkStatic, distroRoot)
-		return flags
-
-	@classmethod
-	def getCompileFlags(cls, platform, linkStatic, distroRoot):
-		flags = super(SDL_ttf, cls).getCompileFlags(
-				platform, linkStatic, distroRoot
-				)
-		if platform == 'android':
-			# On Android, we don't share an install location with SDL,
-			# so SDL's compile flags are insufficient.
-			flags += ' -I%s/include/SDL' % distroRoot
+			flags += ' ' + SDL2.getLinkFlags(platform, linkStatic, distroRoot)
 		return flags
 
 	@classmethod

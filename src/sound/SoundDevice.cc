@@ -9,9 +9,11 @@
 #include "MemBuffer.hh"
 #include "MSXException.hh"
 #include "likely.hh"
+#include "ranges.hh"
 #include "vla.hh"
-#include "memory.hh"
+#include "xrange.hh"
 #include <cassert>
+#include <memory>
 
 using std::string;
 
@@ -48,42 +50,6 @@ void SoundDevice::addFill(int*& buf, int val, unsigned num)
 	// method can also be called in the middle of a buffer (so multiple
 	// times per buffer), in such case it does go wrong.
 	assert(num > 0);
-#ifdef __arm__
-	asm volatile (
-		"subs	%[num],%[num],#4\n\t"
-		"bmi	1f\n"
-	"0:\n\t"
-		"ldmia	%[buf],{r3-r6}\n\t"
-		"add	r3,r3,%[val]\n\t"
-		"add	r4,r4,%[val]\n\t"
-		"add	r5,r5,%[val]\n\t"
-		"add	r6,r6,%[val]\n\t"
-		"stmia	%[buf]!,{r3-r6}\n\t"
-		"subs	%[num],%[num],#4\n\t"
-		"bpl	0b\n"
-	"1:\n\t"
-		"tst	%[num],#2\n\t"
-		"beq	2f\n\t"
-		"ldmia	%[buf],{r3-r4}\n\t"
-		"add	r3,r3,%[val]\n\t"
-		"add	r4,r4,%[val]\n\t"
-		"stmia	%[buf]!,{r3-r4}\n"
-	"2:\n\t"
-		"tst	%[num],#1\n\t"
-		"beq	3f\n\t"
-		"ldr	r3,[%[buf]]\n\t"
-		"add	r3,r3,%[val]\n\t"
-		"str	r3,[%[buf]],#4\n"
-	"3:\n\t"
-		: [buf] "=r"    (buf)
-		, [num] "=r"    (num)
-		:       "[buf]" (buf)
-		, [val] "r"     (val)
-		,       "[num]" (num)
-		: "memory", "r3","r4","r5","r6"
-	);
-	return;
-#endif
 	do {
 		*buf++ += val;
 	} while (--num);
@@ -104,10 +70,8 @@ SoundDevice::SoundDevice(MSXMixer& mixer_, string_view name_,
 	assert(stereo == 1 || stereo == 2);
 
 	// initially no channels are muted
-	for (unsigned i = 0; i < numChannels; ++i) {
-		channelMuted[i] = false;
-		channelBalance[i] = 0;
-	}
+	ranges::fill(channelMuted, false);
+	ranges::fill(channelBalance, 0);
 }
 
 SoundDevice::~SoundDevice() = default;
@@ -175,8 +139,14 @@ void SoundDevice::updateStream(EmuTime::param time)
 
 void SoundDevice::setSoftwareVolume(VolumeType volume, EmuTime::param time)
 {
+	setSoftwareVolume(volume, volume, time);
+}
+
+void SoundDevice::setSoftwareVolume(VolumeType left, VolumeType right, EmuTime::param time)
+{
 	updateStream(time);
-	softwareVolume = volume;
+	softwareVolumeLeft  = left;
+	softwareVolumeRight = right;
 	mixer.updateSoftwareVolume(*this);
 }
 
@@ -185,7 +155,7 @@ void SoundDevice::recordChannel(unsigned channel, const Filename& filename)
 	assert(channel < numChannels);
 	bool wasRecording = writer[channel] != nullptr;
 	if (!filename.empty()) {
-		writer[channel] = make_unique<Wav16Writer>(
+		writer[channel] = std::make_unique<Wav16Writer>(
 			filename, stereo, inputSampleRate);
 	} else {
 		writer[channel].reset();
@@ -265,12 +235,8 @@ bool SoundDevice::mixChannels(int* dataOut, unsigned samples)
 	generateChannels(bufs, samples);
 
 	if (separateChannels == 0) {
-		for (unsigned i = 0; i < numChannels; ++i) {
-			if (bufs[i]) {
-				return true;
-			}
-		}
-		return false;
+		return ranges::any_of(xrange(numChannels),
+		                      [&bufs](auto i) { return bufs[i]; });
 	}
 
 	// record channels
@@ -278,8 +244,11 @@ bool SoundDevice::mixChannels(int* dataOut, unsigned samples)
 		if (writer[i]) {
 			assert(bufs[i] != dataOut);
 			if (bufs[i]) {
+				auto amp = getAmplificationFactor();
 				writer[i]->write(
-					bufs[i], stereo, samples, getAmplificationFactor().toInt());
+					bufs[i], stereo, samples,
+					amp.first.toFloat(),
+					amp.second.toFloat());
 			} else {
 				writer[i]->writeSilence(stereo, samples);
 			}

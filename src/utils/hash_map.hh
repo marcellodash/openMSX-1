@@ -13,13 +13,7 @@ namespace hash_set_impl {
 // Takes any (const or non-const) pair reference and returns a reference to
 // the first element of the pair.
 struct ExtractFirst {
-	// c++14:  template<typename Pair> auto& operator()(Pair&& p) const { return p.first; }
-
-	template<typename First, typename Second>
-	inline       First& operator()(      std::pair<First, Second>& p) const { return p.first; }
-
-	template<typename First, typename Second>
-	inline const First& operator()(const std::pair<First, Second>& p) const { return p.first; }
+	template<typename Pair> auto& operator()(Pair&& p) const { return p.first; }
 };
 
 } // namespace hash_set_impl
@@ -51,6 +45,11 @@ public:
 	{
 	}
 
+	hash_map(std::initializer_list<std::pair<Key, Value>> list)
+		: BaseType(list)
+	{
+	}
+
 	template<typename K>
 	Value& operator[](K&& key)
 	{
@@ -79,6 +78,27 @@ public:
 			return std::make_pair(it, false);
 		}
 	}
+
+	template<typename K>
+	bool contains(const K& k) const
+	{
+		return this->find(k) != this->end();
+	}
 };
+
+
+template<typename Key, typename Value, typename Hasher, typename Equal, typename Key2>
+const Value* lookup(const hash_map<Key, Value, Hasher, Equal>& map, const Key2& key)
+{
+	auto it = map.find(key);
+	return (it != map.end()) ? &it->second : nullptr;
+}
+
+template<typename Key, typename Value, typename Hasher, typename Equal, typename Key2>
+Value* lookup(hash_map<Key, Value, Hasher, Equal>& map, const Key2& key)
+{
+	auto it = map.find(key);
+	return (it != map.end()) ? &it->second : nullptr;
+}
 
 #endif

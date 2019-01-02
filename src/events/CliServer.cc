@@ -3,9 +3,9 @@
 #include "CliConnection.hh"
 #include "FileOperations.hh"
 #include "MSXException.hh"
-#include "memory.hh"
 #include "random.hh"
 #include "statp.hh"
+#include <memory>
 #include <string>
 
 #ifdef _WIN32
@@ -140,7 +140,7 @@ SOCKET CliServer::createSocket()
 	FileOperations::unlink(socketName); // ignore error
 	std::ofstream out;
 	FileOperations::openofstream(out, socketName);
-	out << portNumber << std::endl;
+	out << portNumber << '\n';
 	if (!out.good()) {
 		sock_close(sd);
 		throw MSXException("Couldn't write socket port file.");
@@ -257,7 +257,7 @@ void CliServer::mainLoop()
 		// does not. To be on the safe side, we explicitly reset file flags.
 		fcntl(sd, F_SETFL, 0);
 #endif
-		cliComm.addListener(make_unique<SocketConnection>(
+		cliComm.addListener(std::make_unique<SocketConnection>(
 			commandController, eventDistributor, sd));
 	}
 }

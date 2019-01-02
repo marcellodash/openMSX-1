@@ -1,15 +1,15 @@
 #include "StringOp.hh"
 #include "MSXException.hh"
-#include <algorithm>
+#include "ranges.hh"
+#include "stl.hh"
+#include "view.hh"
 #include <limits>
 #include <cassert>
 #include <cstdlib>
 #include <stdexcept>
 
 using std::string;
-using std::transform;
 using std::vector;
-using std::set;
 
 namespace StringOp {
 
@@ -64,7 +64,7 @@ bool stringToDouble(const string& str, double& result)
 string toLower(string_view str)
 {
 	string result = str.str();
-	transform(begin(result), end(result), begin(result), ::tolower);
+	transform_in_place(result, ::tolower);
 	return result;
 }
 
@@ -212,10 +212,9 @@ string join(const vector<string_view>& elems, char separator)
 {
 	if (elems.empty()) return {};
 
-	auto it = begin(elems);
-	string result = strCat(*it);
-	for (++it; it != end(elems); ++it) {
-		strAppend(result, separator, *it);
+	string result = strCat(elems.front());
+	for (auto& e : view::drop(elems, 1)) {
+		strAppend(result, separator, e);
 	}
 	return result;
 }
@@ -233,15 +232,18 @@ static unsigned parseNumber(string_view str)
 	throw openmsx::MSXException("Invalid integer: ", str);
 }
 
-static void insert(unsigned x, set<unsigned>& result, unsigned min, unsigned max)
+static void insert(unsigned x, vector<unsigned>& result, unsigned min, unsigned max)
 {
 	if ((x < min) || (x > max)) {
 		throw openmsx::MSXException("Out of range");
 	}
-	result.insert(x);
+	auto it = ranges::lower_bound(result, x);
+	if ((it == end(result)) || (*it != x)) {
+		result.insert(it, x);
+	}
 }
 
-static void parseRange2(string_view str, set<unsigned>& result,
+static void parseRange2(string_view str, vector<unsigned>& result,
                         unsigned min, unsigned max)
 {
 	// trimRight only: here we only care about all spaces
@@ -263,9 +265,9 @@ static void parseRange2(string_view str, set<unsigned>& result,
 	}
 }
 
-set<unsigned> parseRange(string_view str, unsigned min, unsigned max)
+vector<unsigned> parseRange(string_view str, unsigned min, unsigned max)
 {
-	set<unsigned> result;
+	vector<unsigned> result;
 	while (true) {
 		auto next = str.find(',');
 		string_view sub = (next == string_view::npos)

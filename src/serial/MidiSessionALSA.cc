@@ -6,6 +6,7 @@
 #include "serialize.hh"
 
 #include <iostream>
+#include <memory>
 
 
 namespace openmsx {
@@ -134,12 +135,12 @@ void MidiOutALSA::recvMessage(
 	if (encodeLen < 0) {
 		std::cerr << "Error encoding MIDI message of type "
 		          << std::hex << int(message[0]) << std::dec
-		          << ": " << snd_strerror(encodeLen) << std::endl;
+		          << ": " << snd_strerror(encodeLen) << '\n';
 		return;
 	}
 	if (ev.type == SND_SEQ_EVENT_NONE) {
 		std::cerr << "Incomplete MIDI message of type "
-		          << std::hex << int(message[0]) << std::dec << std::endl;
+		          << std::hex << int(message[0]) << std::dec << '\n';
 		return;
 	}
 
@@ -148,7 +149,7 @@ void MidiOutALSA::recvMessage(
 	int err = snd_seq_event_output(&seq, &ev);
 	if (err < 0) {
 		std::cerr << "Error sending MIDI event: "
-		          << snd_strerror(err) << std::endl;
+		          << snd_strerror(err) << '\n';
 	}
 	snd_seq_drain_output(&seq);
 }
@@ -224,7 +225,7 @@ void MidiSessionALSA::scanClients(PluggingController& controller)
 			constexpr unsigned int wrcaps =
 					SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE;
 			if ((snd_seq_port_info_get_capability(pinfo) & wrcaps) == wrcaps) {
-				controller.registerPluggable(make_unique<MidiOutALSA>(
+				controller.registerPluggable(std::make_unique<MidiOutALSA>(
 						seq, *cinfo, *pinfo
 						));
 			}

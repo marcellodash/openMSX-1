@@ -1,9 +1,9 @@
 #include "OSDTopWidget.hh"
 #include "OSDGUI.hh"
-#include "OutputRectangle.hh"
+#include "OutputSurface.hh"
 #include "Display.hh"
 #include "CliComm.hh"
-#include "KeyRange.hh"
+#include "view.hh"
 
 namespace openmsx {
 
@@ -18,7 +18,7 @@ string_view OSDTopWidget::getType() const
 	return "top";
 }
 
-gl::vec2 OSDTopWidget::getSize(const OutputRectangle& output) const
+gl::vec2 OSDTopWidget::getSize(const OutputSurface& output) const
 {
 	return gl::vec2(output.getOutputSize()); // int -> float
 }
@@ -81,11 +81,8 @@ void OSDTopWidget::removeName(OSDWidget& widget)
 
 std::vector<string_view> OSDTopWidget::getAllWidgetNames() const
 {
-	std::vector<string_view> result;
-	for (auto* p : widgetsByName) {
-		result.push_back(p->getName());
-	}
-	return result;
+	return to_vector(view::transform(widgetsByName,
+	                                 [](auto* p) { return p->getName(); }));
 }
 
 } // namespace openmsx

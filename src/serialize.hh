@@ -394,7 +394,7 @@ public:
 	}
 
 protected:
-	OutputArchiveBase2();
+	OutputArchiveBase2() = default;
 
 private:
 	unsigned generateID1(const void* p);
@@ -404,7 +404,7 @@ private:
 
 	std::map<std::pair<const void*, std::type_index>, unsigned> idMap;
 	std::map<const void*, unsigned> polyIdMap;
-	unsigned lastId;
+	unsigned lastId = 0;
 };
 
 template<typename Derived>
@@ -476,7 +476,7 @@ public:
 	}
 
 protected:
-	OutputArchiveBase() {}
+	OutputArchiveBase() = default;
 };
 
 
@@ -509,14 +509,14 @@ public:
 		auto it = sharedPtrMap.find(r);
 		if (it == end(sharedPtrMap)) {
 			s.reset(r);
-			sharedPtrMap[r] = s;
+			sharedPtrMap[r] = s; // TODO use c++17 try_emplace()
 		} else {
 			s = std::static_pointer_cast<T>(it->second);
 		}
 	}
 
 protected:
-	InputArchiveBase2() {}
+	InputArchiveBase2() = default;
 
 private:
 	std::map<unsigned, void*> idMap;
@@ -539,7 +539,7 @@ public:
 	void serialize(const char* tag, T& t)
 	{
 		this->self().beginTag(tag);
-		using TNC = typename std::remove_const<T>::type;
+		using TNC = std::remove_const_t<T>;
 		auto& tnc = const_cast<TNC&>(t);
 		Loader<TNC> loader;
 		loader(this->self(), tnc, std::make_tuple(), -1); // don't load id
@@ -548,7 +548,7 @@ public:
 	template<typename T> void serializePointerID(const char* tag, const T& t)
 	{
 		this->self().beginTag(tag);
-		using TNC = typename std::remove_const<T>::type;
+		using TNC = std::remove_const_t<T>;
 		auto& tnc = const_cast<TNC&>(t);
 		IDLoader<TNC> loader;
 		loader(this->self(), tnc);
@@ -581,7 +581,7 @@ public:
 	void doSerialize(const char* tag, T& t, TUPLE args, int id = 0)
 	{
 		this->self().beginTag(tag);
-		using TNC = typename std::remove_const<T>::type;
+		using TNC = std::remove_const_t<T>;
 		auto& tnc = const_cast<TNC&>(t);
 		Loader<TNC> loader;
 		loader(this->self(), tnc, args, id);
@@ -589,7 +589,7 @@ public:
 	}
 
 protected:
-	InputArchiveBase() {}
+	InputArchiveBase() = default;
 };
 
 
@@ -622,7 +622,7 @@ public:
 		save(c);
 	}
 	void save(const std::string& s);
-	void serialize_blob(const char*, const void* data, size_t len,
+	void serialize_blob(const char* tag, const void* data, size_t len,
 	                    bool diff = true);
 
 	void beginSection()
@@ -690,7 +690,7 @@ public:
 	}
 	void load(std::string& s);
 	string_view loadStr();
-	void serialize_blob(const char*, void* data, size_t len,
+	void serialize_blob(const char* tag, void* data, size_t len,
 	                    bool diff = true);
 
 	void skipSection(bool skip)

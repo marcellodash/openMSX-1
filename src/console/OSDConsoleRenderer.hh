@@ -15,18 +15,19 @@
 
 namespace openmsx {
 
-class Reactor;
-class CommandConsole;
-class ConsoleLine;
 class BaseImage;
 class BooleanSetting;
+class CommandConsole;
+class ConsoleLine;
+class Display;
+class Reactor;
 
 class OSDConsoleRenderer final : public Layer, private Observer<Setting>
 {
 public:
 	OSDConsoleRenderer(Reactor& reactor, CommandConsole& console,
 	                   unsigned screenW, unsigned screenH, bool openGL);
-	~OSDConsoleRenderer();
+	~OSDConsoleRenderer() override;
 
 private:
 	int initFontAndGetColumns();
@@ -45,7 +46,7 @@ private:
 	void loadFont      (string_view value);
 	void loadBackground(string_view value);
 	byte getVisibility() const;
-	void drawText(OutputSurface& output, const ConsoleLine& text,
+	void drawText(OutputSurface& output, const ConsoleLine& line,
 	              gl::ivec2 pos, byte alpha);
 	void drawText2(OutputSurface& output, string_view text,
                        int& x, int y, byte alpha, unsigned rgb);
@@ -76,6 +77,7 @@ private:
 	using TextCache = std::list<TextCacheElement>;
 
 	Reactor& reactor;
+	Display& display;
 	CommandConsole& console;
 	BooleanSetting& consoleSetting;
 	const unsigned screenW;

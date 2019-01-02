@@ -1,7 +1,6 @@
 #ifndef OUTPUTSURFACE_HH
 #define OUTPUTSURFACE_HH
 
-#include "OutputRectangle.hh"
 #include "gl_vec.hh"
 #include <string>
 #include <cassert>
@@ -13,7 +12,7 @@ namespace openmsx {
   * It could be an in-memory buffer or a video buffer visible to the user
   * (see VisibleSurface subclass).
   */
-class OutputSurface : public OutputRectangle
+class OutputSurface
 {
 public:
 	OutputSurface(const OutputSurface&) = delete;
@@ -23,11 +22,14 @@ public:
 
 	unsigned getWidth()  const { return surface->w; }
 	unsigned getHeight() const { return surface->h; }
+	gl::ivec2 getOutputSize() const { return gl::ivec2(getWidth(), getHeight()); }
+
 	int getX() const { return xOffset; }
 	int getY() const { return yOffset; }
 
 	const SDL_PixelFormat& getSDLFormat() const { return format; }
 	SDL_Surface* getSDLSurface()          const { return surface; }
+	SDL_Renderer* getSDLRenderer()        const { return renderer; }
 
 	/** Returns the pixel value for the given RGB color.
 	  * No effort is made to ensure that the returned pixel value is not the
@@ -135,14 +137,13 @@ protected:
 
 	void setPosition(int x, int y);
 	void setSDLSurface(SDL_Surface* surface_) { surface = surface_; }
+	void setSDLRenderer(SDL_Renderer* r) { renderer = r; }
 	void setSDLFormat(const SDL_PixelFormat& format);
 	void setBufferPtr(char* data, unsigned pitch);
 
 private:
-	// OutputRectangle
-	gl::ivec2 getOutputSize() const override { return gl::ivec2(getWidth(), getHeight()); }
-
 	SDL_Surface* surface = nullptr;
+	SDL_Renderer* renderer = nullptr;
 	SDL_PixelFormat format;
 	char* data;
 	unsigned pitch;

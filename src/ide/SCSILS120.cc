@@ -34,10 +34,10 @@
 #include "FileContext.hh"
 #include "endian.hh"
 #include "serialize.hh"
-#include "memory.hh"
 #include <algorithm>
-#include <vector>
 #include <cstring>
+#include <memory>
+#include <vector>
 
 using std::string;
 using std::vector;
@@ -86,7 +86,7 @@ public:
 	LSXCommand(CommandController& commandController,
 	           StateChangeDistributor& stateChangeDistributor,
 	           Scheduler& scheduler, SCSILS120& ls);
-	void execute(array_ref<TclObject> tokens,
+	void execute(span<const TclObject> tokens,
 	             TclObject& result, EmuTime::param time) override;
 	string help(const vector<string>& tokens) const override;
 	void tabCompletion(vector<string>& tokens) const override;
@@ -113,7 +113,7 @@ SCSILS120::SCSILS120(const DeviceConfig& targetconfig,
 	}
 	name[2] = char('a' + id);
 	(*lsInUse)[id] = true;
-	lsxCommand = make_unique<LSXCommand>(
+	lsxCommand = std::make_unique<LSXCommand>(
 		motherBoard.getCommandController(),
 		motherBoard.getStateChangeDistributor(),
 		motherBoard.getScheduler(), *this);
@@ -343,7 +343,7 @@ bool SCSILS120::checkReadOnly()
 
 unsigned SCSILS120::readCapacity()
 {
-	unsigned block = unsigned(getNbSectors());
+	auto block = unsigned(getNbSectors());
 
 	if (block == 0) {
 		// drive not ready
@@ -360,7 +360,7 @@ unsigned SCSILS120::readCapacity()
 
 bool SCSILS120::checkAddress()
 {
-	unsigned total = unsigned(getNbSectors());
+	auto total = unsigned(getNbSectors());
 	if (total == 0) {
 		// drive not ready
 		keycode = SCSI::SENSE_MEDIUM_NOT_PRESENT;
@@ -760,7 +760,7 @@ LSXCommand::LSXCommand(CommandController& commandController_,
 {
 }
 
-void LSXCommand::execute(array_ref<TclObject> tokens, TclObject& result,
+void LSXCommand::execute(span<const TclObject> tokens, TclObject& result,
                          EmuTime::param /*time*/)
 {
 	if (tokens.size() == 1) {

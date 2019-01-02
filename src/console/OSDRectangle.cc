@@ -1,13 +1,15 @@
 #include "OSDRectangle.hh"
 #include "SDLImage.hh"
+#include "OutputSurface.hh"
 #include "CommandException.hh"
 #include "FileContext.hh"
 #include "FileOperations.hh"
 #include "TclObject.hh"
+#include "stl.hh"
 #include "components.hh"
-#include "memory.hh"
 #include <cassert>
 #include <cmath>
+#include <memory>
 #if COMPONENT_GL
 #include "GLImage.hh"
 #endif
@@ -32,7 +34,7 @@ vector<string_view> OSDRectangle::getProperties() const
 		"-w", "-h", "-relw", "-relh", "-scale", "-image",
 		"-bordersize", "-relbordersize", "-borderrgba",
 	};
-	result.insert(end(result), std::begin(vals), std::end(vals));
+	append(result, vals);
 	return result;
 }
 
@@ -136,7 +138,7 @@ bool OSDRectangle::takeImageDimensions() const
 	return (size == vec2()) && (relSize == vec2());
 }
 
-vec2 OSDRectangle::getSize(const OutputRectangle& output) const
+vec2 OSDRectangle::getSize(const OutputSurface& output) const
 {
 	if (!imageName.empty() && image && takeImageDimensions()) {
 		return vec2(image->getSize());
@@ -144,7 +146,7 @@ vec2 OSDRectangle::getSize(const OutputRectangle& output) const
 		return (size * float(getScaleFactor(output)) * scale) +
 		       (getParent()->getSize(output) * relSize);
 	}
-	//std::cout << "rectangle getWH " << getName() << "  " << width << " x " << height << std::endl;
+	//std::cout << "rectangle getWH " << getName() << "  " << width << " x " << height << '\n';
 }
 
 uint8_t OSDRectangle::getFadedAlpha() const
@@ -153,7 +155,7 @@ uint8_t OSDRectangle::getFadedAlpha() const
 }
 
 template <typename IMAGE> std::unique_ptr<BaseImage> OSDRectangle::create(
-	OutputRectangle& output)
+	OutputSurface& output)
 {
 	if (imageName.empty()) {
 		bool constAlpha = hasConstantAlpha();
@@ -170,25 +172,25 @@ template <typename IMAGE> std::unique_ptr<BaseImage> OSDRectangle::create(
 		float factor = getScaleFactor(output) * scale;
 		int bs = lrintf(factor * borderSize + iSize[0] * relBorderSize);
 		assert(bs >= 0);
-		return make_unique<IMAGE>(iSize, getRGBA4(), bs, borderRGBA);
+		return std::make_unique<IMAGE>(output, iSize, getRGBA4(), bs, borderRGBA);
 	} else {
 		string file = systemFileContext().resolve(imageName);
 		if (takeImageDimensions()) {
 			float factor = getScaleFactor(output) * scale;
-			return make_unique<IMAGE>(file, factor);
+			return std::make_unique<IMAGE>(output, file, factor);
 		} else {
 			ivec2 iSize = round(getSize(output));
-			return make_unique<IMAGE>(file, iSize);
+			return std::make_unique<IMAGE>(output, file, iSize);
 		}
 	}
 }
 
-std::unique_ptr<BaseImage> OSDRectangle::createSDL(OutputRectangle& output)
+std::unique_ptr<BaseImage> OSDRectangle::createSDL(OutputSurface& output)
 {
 	return create<SDLImage>(output);
 }
 
-std::unique_ptr<BaseImage> OSDRectangle::createGL(OutputRectangle& output)
+std::unique_ptr<BaseImage> OSDRectangle::createGL(OutputSurface& output)
 {
 #if COMPONENT_GL
 	return create<GLImage>(output);

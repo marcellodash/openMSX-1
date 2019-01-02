@@ -6,7 +6,7 @@
 #include "OSDGUILayer.hh"
 #include "InitException.hh"
 #include "RenderSettings.hh"
-#include "memory.hh"
+#include <memory>
 
 namespace openmsx {
 
@@ -25,9 +25,10 @@ SDLGLVisibleSurface::SDLGLVisibleSurface(
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
 	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
-	int flags = SDL_OPENGL | SDL_HWSURFACE | SDL_DOUBLEBUF;
+	int flags = SDL_WINDOW_OPENGL;
 	//flags |= SDL_RESIZABLE;
 	createSurface(width, height, flags);
+	glContext = SDL_GL_CreateContext(window.get());
 
 	// The created surface may be larger than requested.
 	// If that happens, center the area that we actually use.
@@ -77,12 +78,14 @@ SDLGLVisibleSurface::SDLGLVisibleSurface(
 	// is split in two phases.
 	SDLGLOutputSurface::init(*this);
 
-	gl::context = make_unique<gl::Context>(width, height);
+	gl::context = std::make_unique<gl::Context>(width, height);
 }
 
 SDLGLVisibleSurface::~SDLGLVisibleSurface()
 {
+	// TODO: Move context creation/deletion into Context class?
 	gl::context.reset();
+	SDL_GL_DeleteContext(glContext);
 }
 
 void SDLGLVisibleSurface::flushFrameBuffer()
@@ -102,30 +105,30 @@ void SDLGLVisibleSurface::saveScreenshot(const std::string& filename)
 
 void SDLGLVisibleSurface::finish()
 {
-	SDL_GL_SwapBuffers();
+	SDL_GL_SwapWindow(window.get());
 }
 
 std::unique_ptr<Layer> SDLGLVisibleSurface::createSnowLayer()
 {
-	return make_unique<GLSnow>(getDisplay());
+	return std::make_unique<GLSnow>(getDisplay());
 }
 
 std::unique_ptr<Layer> SDLGLVisibleSurface::createConsoleLayer(
 		Reactor& reactor, CommandConsole& console)
 {
 	const bool openGL = true;
-	return make_unique<OSDConsoleRenderer>(
+	return std::make_unique<OSDConsoleRenderer>(
 		reactor, console, getWidth(), getHeight(), openGL);
 }
 
 std::unique_ptr<Layer> SDLGLVisibleSurface::createOSDGUILayer(OSDGUI& gui)
 {
-	return make_unique<GLOSDGUILayer>(gui);
+	return std::make_unique<GLOSDGUILayer>(gui);
 }
 
 std::unique_ptr<OutputSurface> SDLGLVisibleSurface::createOffScreenSurface()
 {
-	return make_unique<SDLGLOffScreenSurface>(*this);
+	return std::make_unique<SDLGLOffScreenSurface>(*this);
 }
 
 } // namespace openmsx

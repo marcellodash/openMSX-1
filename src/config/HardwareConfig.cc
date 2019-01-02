@@ -12,11 +12,12 @@
 #include "CliComm.hh"
 #include "serialize.hh"
 #include "serialize_stl.hh"
-#include "memory.hh"
 #include "unreachable.hh"
+#include "view.hh"
 #include "xrange.hh"
 #include <cassert>
 #include <iostream>
+#include <memory>
 
 using std::string;
 using std::vector;
@@ -28,7 +29,7 @@ namespace openmsx {
 unique_ptr<HardwareConfig> HardwareConfig::createMachineConfig(
 	MSXMotherBoard& motherBoard, const string& machineName)
 {
-	auto result = make_unique<HardwareConfig>(motherBoard, machineName);
+	auto result = std::make_unique<HardwareConfig>(motherBoard, machineName);
 	result->load("machines");
 	return result;
 }
@@ -36,7 +37,7 @@ unique_ptr<HardwareConfig> HardwareConfig::createMachineConfig(
 unique_ptr<HardwareConfig> HardwareConfig::createExtensionConfig(
 	MSXMotherBoard& motherBoard, string_view extensionName, string_view slotname)
 {
-	auto result = make_unique<HardwareConfig>(motherBoard, extensionName.str());
+	auto result = std::make_unique<HardwareConfig>(motherBoard, extensionName.str());
 	result->load("extensions");
 	result->setName(extensionName);
 	result->setSlot(slotname);
@@ -45,9 +46,9 @@ unique_ptr<HardwareConfig> HardwareConfig::createExtensionConfig(
 
 unique_ptr<HardwareConfig> HardwareConfig::createRomConfig(
 	MSXMotherBoard& motherBoard, string_view romfile,
-	string_view slotname, array_ref<TclObject> options)
+	string_view slotname, span<const TclObject> options)
 {
-	auto result = make_unique<HardwareConfig>(motherBoard, "rom");
+	auto result = std::make_unique<HardwareConfig>(motherBoard, "rom");
 	const auto& sramfile = FileOperations::getFilename(romfile);
 	auto context = userFileContext(strCat("roms/", sramfile));
 
@@ -141,7 +142,7 @@ HardwareConfig::~HardwareConfig()
 	try {
 		testRemove();
 	} catch (MSXException& e) {
-		std::cerr << e.getMessage() << std::endl;
+		std::cerr << e.getMessage() << '\n';
 		UNREACHABLE;
 	}
 #endif
@@ -171,9 +172,9 @@ HardwareConfig::~HardwareConfig()
 void HardwareConfig::testRemove() const
 {
 	std::vector<MSXDevice*> alreadyRemoved;
-	for (auto it = devices.rbegin(); it != devices.rend(); ++it) {
-		(*it)->testRemove(alreadyRemoved);
-		alreadyRemoved.push_back(it->get());
+	for (auto& dev : view::reverse(devices)) {
+		dev->testRemove(alreadyRemoved);
+		alreadyRemoved.push_back(dev.get());
 	}
 	auto& slotManager = motherBoard.getSlotManager();
 	for (auto ps : xrange(4)) {

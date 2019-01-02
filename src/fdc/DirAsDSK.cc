@@ -7,8 +7,8 @@
 #include "FileException.hh"
 #include "ReadDir.hh"
 #include "StringOp.hh"
+#include "ranges.hh"
 #include "stl.hh"
-#include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <vector>
@@ -226,17 +226,18 @@ bool DirAsDSK::checkFileUsedInDSK(const string& hostName)
 static string hostToMsxName(string hostName)
 {
 	// Create an MSX filename 8.3 format. TODO use vfat-like abbreviation
-	transform(begin(hostName), end(hostName), begin(hostName),
-		[](char a) { return (a == ' ') ? '_' : ::toupper(a); });
-
+	transform_in_place(hostName, [](char a) {
+		return (a == ' ') ? '_' : ::toupper(a);
+	});
 	string_view file, ext;
 	StringOp::splitOnLast(hostName, '.', file, ext);
 	if (file.empty()) std::swap(file, ext);
 
 	string result(8 + 3, ' ');
+	// c++17: use result.data()
 	memcpy(&*begin(result) + 0, file.data(), std::min<size_t>(8, file.size()));
 	memcpy(&*begin(result) + 8, ext .data(), std::min<size_t>(3, ext .size()));
-	replace(begin(result), end(result), '.', '_');
+	ranges::replace(result, '.', '_');
 	return result;
 }
 
@@ -401,7 +402,7 @@ void DirAsDSK::checkDeletedHostFiles()
 	// This handles both host files and directories.
 	auto copy = mapDirs;
 	for (auto& p : copy) {
-		if (mapDirs.find(p.first) == end(mapDirs)) {
+		if (!mapDirs.count(p.first)) { // c++20 contains()
 			// While iterating over (the copy of) mapDirs we delete
 			// entries of mapDirs (when we delete files only the
 			// current entry is deleted, when we delete
@@ -498,7 +499,7 @@ void DirAsDSK::checkModifiedHostFiles()
 {
 	auto copy = mapDirs;
 	for (auto& p : copy) {
-		if (mapDirs.find(p.first) == end(mapDirs)) {
+		if (!mapDirs.count(p.first)) { // c++20 contains()
 			// See comment in checkDeletedHostFiles().
 			continue;
 		}
@@ -535,7 +536,7 @@ void DirAsDSK::checkModifiedHostFiles()
 void DirAsDSK::importHostFile(DirIndex dirIndex, FileOperations::Stat& fst)
 {
 	assert(!(msxDir(dirIndex).attrib & MSXDirEntry::ATT_DIRECTORY));
-	assert(mapDirs.find(dirIndex) != end(mapDirs));
+	assert(mapDirs.count(dirIndex)); // c++20 contains()
 
 	// Set _msx_ modification time.
 	setMSXTimeStamp(dirIndex, fst);
@@ -680,7 +681,7 @@ static size_t weight(const string& hostName)
 	string_view file, ext;
 	StringOp::splitOnLast(hostName, '.', file, ext);
 	// too many '.' characters
-	result += std::count(begin(file), end(file), '.') * 100;
+	result += ranges::count(file, '.') * 100;
 	// too long extension
 	result += ext.size() * 10;
 	// too long file
@@ -700,7 +701,7 @@ void DirAsDSK::addNewHostFiles(const string& hostSubDir, unsigned msxDirSector)
 			hostNames.emplace_back(d->d_name);
 		}
 	}
-	sort(begin(hostNames), end(hostNames),
+	ranges::sort(hostNames,
 	     [](const string& l, const string& r) { return weight(l) < weight(r); });
 
 	for (auto& hostName : hostNames) {
@@ -858,7 +859,7 @@ DirAsDSK::DirIndex DirAsDSK::getFreeDirEntry(unsigned msxDirSector)
 			    (msxName[0] == char(0xE5))) {
 				// Found an unused msx entry. There shouldn't
 				// be any hostfile mapped to this entry.
-				assert(mapDirs.find(dirIndex) == end(mapDirs));
+				assert(!mapDirs.count(dirIndex)); // c++20 contains()
 				return dirIndex;
 			}
 		}
@@ -1164,8 +1165,10 @@ void DirAsDSK::exportToHost(DirIndex dirIndex, DirIndex dirDirIndex)
 	}
 	const char* msxName = msxDir(dirIndex).filename;
 	string hostName;
-	auto it = mapDirs.find(dirIndex);
-	if (it == end(mapDirs)) {
+	if (auto v = lookup(mapDirs, dirIndex)) {
+		// Hostname is already known.
+		hostName = v->hostName;
+	} else {
 		// Host file/dir does not yet exist, create hostname from
 		// msx name.
 		if ((msxName[0] == char(0x00)) || (msxName[0] == char(0xE5))) {
@@ -1175,17 +1178,14 @@ void DirAsDSK::exportToHost(DirIndex dirIndex, DirIndex dirDirIndex)
 		string hostSubDir;
 		if (dirDirIndex.sector != 0) {
 			// Not the msx root directory.
-			auto it2 = mapDirs.find(dirDirIndex);
-			assert(it2 != end(mapDirs));
-			hostSubDir = it2->second.hostName;
+			auto v2 = lookup(mapDirs, dirDirIndex);
+			assert(v2);
+			hostSubDir = v2->hostName;
 			assert(!StringOp::endsWith(hostSubDir, '/'));
 			hostSubDir += '/';
 		}
 		hostName = hostSubDir + msxToHostName(msxName);
 		mapDirs[dirIndex].hostName = hostName;
-	} else {
-		// Hostname is already known.
-		hostName = it->second.hostName;
 	}
 	if (msxDir(dirIndex).attrib & MSXDirEntry::ATT_DIRECTORY) {
 		if ((memcmp(msxName, ".          ", 11) == 0) ||
@@ -1346,14 +1346,14 @@ void DirAsDSK::writeDataSector(unsigned sector, const SectorBuffer& buf)
 	// Get corresponding directory entry.
 	DirIndex dirIndex = getDirEntryForCluster(startCluster);
 	// no need to check for 'dirIndex.sector == unsigned(-1)'
-	auto it = mapDirs.find(dirIndex);
-	if (it == end(mapDirs)) {
+	auto v = lookup(mapDirs, dirIndex);
+	if (!v) {
 		// This sector was not mapped to a file, nothing more to do.
 		return;
 	}
 
 	// Actually write data to host file.
-	string fullHostName = hostDir + it->second.hostName;
+	string fullHostName = hostDir + v->hostName;
 	try {
 		File file(fullHostName, "rb+"); // don't uncompress
 		file.seek(offset);

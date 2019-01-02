@@ -1,10 +1,11 @@
 #ifndef FILE_HH
 #define FILE_HH
 
-#include "openmsx.hh"
+#include "span.hh"
 #include "string_view.hh"
-#include <memory>
+#include <cstdint>
 #include <ctime>
+#include <memory>
 
 namespace openmsx {
 
@@ -35,8 +36,8 @@ public:
 	 * @throws FileNotFoundException if file not found
 	 * @throws FileException for other errors
 	 */
-	explicit File(string_view         filename, OpenMode mode = NORMAL);
-	explicit File(const Filename&    filename, OpenMode mode = NORMAL);
+	explicit File(string_view     filename, OpenMode mode = NORMAL);
+	explicit File(const Filename& filename, OpenMode mode = NORMAL);
 
 	/** This constructor maps very closely on the fopen() libc function.
 	  * Compared to constructor above, it does not transparantly
@@ -45,8 +46,8 @@ public:
 	  * @param mode Open mode, same meaning as in fopen(), but we assert
 	  *             that it contains a 'b' character.
 	  */
-	File(string_view         filename, const char* mode);
-	File(const Filename&    filename, const char* mode);
+	File(string_view     filename, const char* mode);
+	File(const Filename& filename, const char* mode);
 	File(File&& other) noexcept;
 
 	~File();
@@ -76,11 +77,10 @@ public:
 	void write(const void* buffer, size_t num);
 
 	/** Map file in memory.
-	 * @param size Filled in with filesize.
-	 * @result Pointer to memory block.
+	 * @result Pointer/size to/of memory block.
 	 * @throws FileException
 	 */
-	const byte* mmap(size_t& size);
+	span<uint8_t> mmap();
 
 	/** Unmap file from memory.
 	 */

@@ -31,7 +31,7 @@ static gl::Texture loadTexture(
 	area.y = 0;
 	area.w = size[0];
 	area.h = size[1];
-	SDL_SetAlpha(surface.get(), 0, 0);
+	SDL_SetSurfaceBlendMode(surface.get(), SDL_BLENDMODE_NONE);
 	SDL_BlitSurface(surface.get(), &area, image2.get(), &area);
 
 	gl::Texture texture(true); // enable interpolation
@@ -53,26 +53,26 @@ static gl::Texture loadTexture(
 }
 
 
-GLImage::GLImage(const string& filename)
+GLImage::GLImage(OutputSurface& /*output*/, const string& filename)
 	: texture(loadTexture(filename, size, texCoord))
 {
 }
 
-GLImage::GLImage(const string& filename, float scalefactor)
+GLImage::GLImage(OutputSurface& /*output*/, const string& filename, float scalefactor)
 	: texture(loadTexture(filename, size, texCoord))
 {
 	size = trunc(vec2(size) * scalefactor);
 	checkSize(size);
 }
 
-GLImage::GLImage(const string& filename, ivec2 size_)
+GLImage::GLImage(OutputSurface& /*output*/, const string& filename, ivec2 size_)
 	: texture(loadTexture(filename, size, texCoord))
 {
 	checkSize(size_);
 	size = size_;
 }
 
-GLImage::GLImage(ivec2 size_, unsigned rgba)
+GLImage::GLImage(OutputSurface& /*output*/, ivec2 size_, unsigned rgba)
 	: texture(gl::Null())
 {
 	checkSize(size_);
@@ -88,7 +88,7 @@ GLImage::GLImage(ivec2 size_, unsigned rgba)
 	}
 }
 
-GLImage::GLImage(ivec2 size_, const unsigned* rgba,
+GLImage::GLImage(OutputSurface& /*output*/, ivec2 size_, const unsigned* rgba,
                  int borderSize_, unsigned borderRGBA)
 	: texture(gl::Null())
 {
@@ -110,12 +110,12 @@ GLImage::GLImage(ivec2 size_, const unsigned* rgba,
 	borderA = (alpha == 255) ? 256 : alpha;
 }
 
-GLImage::GLImage(SDLSurfacePtr image)
+GLImage::GLImage(OutputSurface& /*output*/, SDLSurfacePtr image)
 	: texture(loadTexture(std::move(image), size, texCoord))
 {
 }
 
-void GLImage::draw(OutputSurface& /*output*/, ivec2 pos, byte r, byte g, byte b, byte alpha)
+void GLImage::draw(OutputSurface& /*output*/, ivec2 pos, uint8_t r, uint8_t g, uint8_t b, uint8_t alpha)
 {
 	// 4-----------------7
 	// |                 |
@@ -160,6 +160,7 @@ void GLImage::draw(OutputSurface& /*output*/, ivec2 pos, byte r, byte g, byte b,
 		glEnableVertexAttribArray(1);
 		texture.bind();
 		glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+		glDisableVertexAttribArray(1);
 	} else {
 		assert(r == 255);
 		assert(g == 255);
@@ -179,23 +180,25 @@ void GLImage::draw(OutputSurface& /*output*/, ivec2 pos, byte r, byte g, byte b,
 		} else {
 			// border
 			if (borderSize > 0) {
-				byte indices[10] = { 4,0,5,1,6,2,7,3,4,0 };
+				uint8_t indices[10] = { 4,0,5,1,6,2,7,3,4,0 };
 				glDisableVertexAttribArray(1);
 				glDrawElements(GL_TRIANGLE_STRIP, 10, GL_UNSIGNED_BYTE, indices);
 			}
 
 			// interior
-			byte col[4][4] = {
-				{ bgR[0], bgG[0], bgB[0], byte((bgA[0] * alpha) / 256) },
-				{ bgR[2], bgG[2], bgB[2], byte((bgA[2] * alpha) / 256) },
-				{ bgR[3], bgG[3], bgB[3], byte((bgA[3] * alpha) / 256) },
-				{ bgR[1], bgG[1], bgB[1], byte((bgA[1] * alpha) / 256) },
+			uint8_t col[4][4] = {
+				{ bgR[0], bgG[0], bgB[0], uint8_t((bgA[0] * alpha) / 256) },
+				{ bgR[2], bgG[2], bgB[2], uint8_t((bgA[2] * alpha) / 256) },
+				{ bgR[3], bgG[3], bgB[3], uint8_t((bgA[3] * alpha) / 256) },
+				{ bgR[1], bgG[1], bgB[1], uint8_t((bgA[1] * alpha) / 256) },
 			};
 			glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, col);
 			glEnableVertexAttribArray(1);
 			glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+			glDisableVertexAttribArray(1);
 		}
 	}
+	glDisableVertexAttribArray(0);
 	glDisable(GL_BLEND);
 }
 

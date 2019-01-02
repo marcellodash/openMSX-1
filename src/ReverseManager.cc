@@ -18,8 +18,10 @@
 #include "Reactor.hh"
 #include "CommandException.hh"
 #include "MemBuffer.hh"
+#include "ranges.hh"
 #include "serialize.hh"
 #include "serialize_stl.hh"
+#include "view.hh"
 #include "xrange.hh"
 #include <cassert>
 #include <cmath>
@@ -233,18 +235,17 @@ void ReverseManager::status(TclObject& result) const
 
 	result.addListElement("snapshots");
 	TclObject snapshots;
-	for (auto& p : history.chunks) {
-		EmuTime time = p.second.time;
-		snapshots.addListElement((time - EmuTime::zero).toDouble());
-	}
+	snapshots.addListElements(view::transform(history.chunks, [](auto& p) {
+		return (p.second.time - EmuTime::zero).toDouble();
+	}));
 	result.addListElement(snapshots);
 
 	result.addListElement("last_event");
-	auto lastEvent = history.events.rbegin();
-	if (lastEvent != history.events.rend() && dynamic_cast<const EndLogEvent*>(lastEvent->get())) {
+	auto lastEvent = rbegin(history.events);
+	if (lastEvent != rend(history.events) && dynamic_cast<const EndLogEvent*>(lastEvent->get())) {
 		++lastEvent;
 	}
-	EmuTime le(isCollecting() && (lastEvent != history.events.rend()) ? (*lastEvent)->getTime() : EmuTime::zero);
+	EmuTime le(isCollecting() && (lastEvent != rend(history.events)) ? (*lastEvent)->getTime() : EmuTime::zero);
 	result.addListElement((le - EmuTime::zero).toDouble());
 }
 
@@ -267,16 +268,16 @@ void ReverseManager::debugInfo(TclObject& result) const
 	result.setString(res);
 }
 
-static void parseGoTo(Interpreter& interp, array_ref<TclObject> tokens,
+static void parseGoTo(Interpreter& interp, span<const TclObject> tokens,
                       bool& novideo, double& time)
 {
 	novideo = false;
 	bool hasTime = false;
-	for (auto i : xrange(size_t(2), tokens.size())) {
-		if (tokens[i] == "-novideo") {
+        for (auto& token : tokens.subspan(2)) {
+		if (token == "-novideo") {
 			novideo = true;
 		} else {
-			time = tokens[i].getDouble(interp);
+			time = token.getDouble(interp);
 			hasTime = true;
 		}
 	}
@@ -285,7 +286,7 @@ static void parseGoTo(Interpreter& interp, array_ref<TclObject> tokens,
 	}
 }
 
-void ReverseManager::goBack(array_ref<TclObject> tokens)
+void ReverseManager::goBack(span<const TclObject> tokens)
 {
 	bool novideo;
 	double t;
@@ -307,7 +308,7 @@ void ReverseManager::goBack(array_ref<TclObject> tokens)
 	goTo(target, novideo);
 }
 
-void ReverseManager::goTo(array_ref<TclObject> tokens)
+void ReverseManager::goTo(span<const TclObject> tokens)
 {
 	bool novideo;
 	double t;
@@ -546,7 +547,7 @@ void ReverseManager::transferState(MSXMotherBoard& newBoard)
 }
 
 void ReverseManager::saveReplay(
-	Interpreter& interp, array_ref<TclObject> tokens, TclObject& result)
+	Interpreter& interp, span<const TclObject> tokens, TclObject& result)
 {
 	const auto& chunks = history.chunks;
 	if (chunks.empty()) {
@@ -609,7 +610,7 @@ void ReverseManager::saveReplay(
 		// seconds before the normal end time so that we get an extra snapshot
 		// at that point, which is comfortable if you want to reverse from the
 		// last snapshot after loading the replay.
-		const auto& lastChunkTime = chunks.rbegin()->second.time;
+		const auto& lastChunkTime = rbegin(chunks)->second.time;
 		const auto& endTime   = ((startTime + MAX_DIST_1_BEFORE_LAST_SNAPSHOT) < lastChunkTime) ? lastChunkTime - MAX_DIST_1_BEFORE_LAST_SNAPSHOT : lastChunkTime;
 		EmuDuration totalLength = endTime - startTime;
 		EmuDuration partitionLength = totalLength.divRoundUp(maxNofExtraSnapshots);
@@ -672,7 +673,7 @@ void ReverseManager::saveReplay(
 }
 
 void ReverseManager::loadReplay(
-	Interpreter& interp, array_ref<TclObject> tokens, TclObject& result)
+	Interpreter& interp, span<const TclObject> tokens, TclObject& result)
 {
 	if (tokens.size() < 3) throw SyntaxError();
 
@@ -961,8 +962,9 @@ void ReverseManager::stopReplay(EmuTime::param time)
 		Events& events = history.events;
 		events.erase(begin(events) + replayIndex, end(events));
 		// search snapshots that are newer than 'time' and erase them
-		auto it = find_if(begin(history.chunks), end(history.chunks),
-			[&](Chunks::value_type& p) { return p.second.time > time; });
+		auto it = ranges::find_if(history.chunks, [&](auto& p) {
+			return p.second.time > time;
+		});
 		history.chunks.erase(it, end(history.chunks));
 		// this also means someone is changing history, record that
 		reRecordCount++;
@@ -1010,7 +1012,7 @@ ReverseManager::ReverseCmd::ReverseCmd(CommandController& controller)
 {
 }
 
-void ReverseManager::ReverseCmd::execute(array_ref<TclObject> tokens, TclObject& result)
+void ReverseManager::ReverseCmd::execute(span<const TclObject> tokens, TclObject& result)
 {
 	if (tokens.size() < 2) {
 		throw CommandException("Missing subcommand");

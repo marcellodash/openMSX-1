@@ -1,8 +1,8 @@
 #include "serialize_meta.hh"
 #include "serialize.hh"
 #include "MSXException.hh"
+#include "ranges.hh"
 #include "stl.hh"
-#include <algorithm>
 #include <cassert>
 #include <iostream>
 
@@ -21,7 +21,7 @@ void PolymorphicSaverRegistry<Archive>::registerHelper(
 	std::unique_ptr<PolymorphicSaverBase<Archive>> saver)
 {
 	assert(!initialized);
-	assert(none_of(begin(saverMap), end(saverMap), EqualTupleValue<0>(type)));
+	assert(ranges::none_of(saverMap, EqualTupleValue<0>(type)));
 	saverMap.emplace_back(type, std::move(saver));
 }
 
@@ -32,14 +32,12 @@ void PolymorphicSaverRegistry<Archive>::save(
 	auto& reg = PolymorphicSaverRegistry<Archive>::instance();
 	if (unlikely(!reg.initialized)) {
 		reg.initialized = true;
-		sort(begin(reg.saverMap), end(reg.saverMap),
-		     LessTupleElement<0>());
+		ranges::sort(reg.saverMap, LessTupleElement<0>());
 	}
-	auto it = lower_bound(begin(reg.saverMap), end(reg.saverMap), typeInfo,
-		LessTupleElement<0>());
+	auto it = ranges::lower_bound(reg.saverMap, typeInfo, LessTupleElement<0>());
 	if ((it == end(reg.saverMap)) || (it->first != typeInfo)) {
 		std::cerr << "Trying to save an unregistered polymorphic type: "
-			  << typeInfo.name() << std::endl;
+			  << typeInfo.name() << '\n';
 		assert(false); return;
 	}
 	it->second->save(ar, t);
@@ -81,9 +79,9 @@ void* PolymorphicLoaderRegistry<Archive>::load(
 	std::string type;
 	ar.attribute("type", type);
 	auto& reg = PolymorphicLoaderRegistry<Archive>::instance();
-	auto it = reg.loaderMap.find(type);
-	assert(it != end(reg.loaderMap));
-	return it->second->load(ar, id, args);
+	auto v = lookup(reg.loaderMap, type);
+	assert(v);
+	return (*v)->load(ar, id, args);
 }
 
 template class PolymorphicLoaderRegistry<MemInputArchive>;
@@ -124,9 +122,9 @@ void PolymorphicInitializerRegistry<Archive>::init(
 	ar.attribute("type", type);
 
 	auto& reg = PolymorphicInitializerRegistry<Archive>::instance();
-	auto it = reg.initializerMap.find(type);
-	assert(it != end(reg.initializerMap));
-	it->second->init(ar, t, id);
+	auto v = lookup(reg.initializerMap, type);
+	assert(v);
+	(*v)->init(ar, t, id);
 
 	ar.endTag(tag);
 }

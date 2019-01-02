@@ -8,11 +8,11 @@
 
 namespace openmsx {
 
-class MSXMemoryMapper : public MSXDevice, public MSXMapperIOClient<MSXMemoryMapper>
+class MSXMemoryMapper : public MSXDevice, public MSXMapperIOClient
 {
 public:
 	explicit MSXMemoryMapper(const DeviceConfig& config);
-	virtual ~MSXMemoryMapper();
+	virtual ~MSXMemoryMapper() override;
 
 	/**
 	 * Returns the currently selected segment for the given page.

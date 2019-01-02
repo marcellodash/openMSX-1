@@ -10,6 +10,7 @@ SDLGLOffScreenSurface::SDLGLOffScreenSurface(const SDLGLVisibleSurface& output)
 {
 	// only used for width and height
 	setSDLSurface(const_cast<SDL_Surface*>(output.getSDLSurface()));
+	setSDLRenderer(output.getSDLRenderer());
 
 	fboTex.bind();
 	glTexImage2D(GL_TEXTURE_2D,    // target
