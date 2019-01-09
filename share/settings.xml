@@ -1,8 +1,18 @@
-<?xml version="1.0"?>
 <!DOCTYPE settings SYSTEM 'settings.dtd'>
 <settings>
-	<!--
-	You can edit this file to provide your users with initial settings
-	that are different from the openMSX defaults.
-	-->
+  <settings>
+    <setting id="renderer">SDL</setting>
+    <setting id="invalid_psg_directions_callback">psgdirectioncallback</setting>
+    <setting id="di_halt_callback">dihaltcallback</setting>
+    <setting id="master_volume">60</setting>
+    <setting id="kbd_mapping_mode">KEY</setting>
+    <setting id="kbd_auto_toggle_code_kana_lock">false</setting>
+    <setting id="resampler">hq</setting>
+    <setting id="default_machine">Panasonic_FS-A1GT</setting>
+    <setting id="scanline">22</setting>
+    <setting id="maxframeskip">1</setting>
+    <setting id="blur">55</setting>
+    <setting id="scale_factor">3</setting>
+  </settings>
+  <bindings/>
 </settings>

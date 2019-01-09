@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <algorithm>
+#include <iostream>
 #else // ifdef _WIN32_ ...
 #include <sys/types.h>
 #include <pwd.h>
@@ -56,12 +57,14 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <cassert>
+#include <iostream>
 
 #ifndef _MSC_VER
 #include <dirent.h>
 #endif
 
 using std::string;
+using std::cout;
 
 #ifdef _WIN32
 using namespace utf8;
@@ -546,6 +549,7 @@ const string& getUserOpenMSXDir()
 #else
 	static const string OPENMSX_DIR = expandTilde("~/.openMSX");
 #endif
+    cout << OPENMSX_DIR << "\n";
 	return OPENMSX_DIR;
 }
 

@@ -8,7 +8,9 @@
 #include "stl.hh"
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 
+using std::cout;
 using std::string;
 using std::vector;
 
@@ -61,7 +63,8 @@ static string resolveHelper(const vector<string>& pathList,
 	for (auto& p : pathList) {
 		string name = FileOperations::join(p, filename);
 		name = FileOperations::expandTilde(name);
-		if (FileOperations::exists(name)) {
+        cout << name << "\n";
+        if (FileOperations::exists(name)) {
 			return name;
 		}
 	}

@@ -4,8 +4,8 @@
   <info>
     <name>RPMCSlot</name>
     <manufacturer>Meesokim</manufacturer>
-    <code>RPMC-V1</code>
-    <release_year>2107</release_year>
+    <code>RPMC-V2019-1</code>
+    <release_year>2019</release_year>
     <description>Raspberry Pi MSX Clone Slot</description>
     <type>RPMCSlot</type>
   </info>

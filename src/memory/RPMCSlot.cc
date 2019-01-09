@@ -39,6 +39,7 @@ RPMCSlot::RPMCSlot(const DeviceConfig& config)
 	//updateMask();
 	reset(EmuTime::dummy());
 	cout << "RPMCSlost start" << endl;
+#if 0
     // open the file:
     std::streampos fileSize;
     std::ifstream file("/home/pi/msxslot/fdc.rom", std::ios::binary);
@@ -51,6 +52,7 @@ RPMCSlot::RPMCSlot(const DeviceConfig& config)
     // read the data:
 	cout << "filesize:" << fileSize << endl;
     file.read((char*) &rom[0], fileSize);
+#endif    
 	msxinit();
 }
 
@@ -115,14 +117,15 @@ byte RPMCSlot::peekMem(word address, EmuTime::param time)
 
 void RPMCSlot::writeMem(word address, byte value, EmuTime::param time)
 {
-	msxwrite(1, address, value);
-	msxwrite(1, address, value);
-	printf("M%04x:%02xw\n", address, value);
+	msxwrite(0, address, value);
+//	printf("M%04x:%02xw\n", address, value);
 }
 
 byte RPMCSlot::readMem(word address, EmuTime::param time)
 {
-	return msxread(1, address);
+    byte value = msxread(0, address);
+//	printf("M%04x:%02xr\n", address, value);
+	return value;
 }
 
 
